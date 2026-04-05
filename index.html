@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Black Hole Simulator</title>
+<meta name="description" content="Interactive 3D Black Hole Physics Simulator with Newtonian orbital mechanics and Einstein ring lensing">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080c14;--panel:rgba(6,14,30,0.92);--border:rgba(0,180,240,0.35);
+  --cyan:#00d4ff;--green:#00ff88;--amber:#ffaa00;--red:#ff3344;
+  --text:#c8d8e8;--dim:rgba(160,190,220,0.5);
+  --font-title:'Orbitron',sans-serif;--font-mono:'Share Tech Mono',monospace;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:12px}
+#app{display:grid;grid-template-rows:42px 1fr 36px;grid-template-columns:280px 1fr 260px;height:100vh;width:100vw}
+
+/* ── TOP BAR ── */
+#top-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+  background:linear-gradient(180deg,rgba(0,60,100,0.4),var(--panel));border-bottom:1px solid var(--border);z-index:10}
+#top-bar .logo{font-family:var(--font-title);font-size:14px;font-weight:700;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 12px rgba(0,212,255,0.5)}
+#top-bar .sub{font-size:10px;color:var(--dim);letter-spacing:2px;margin-left:12px}
+.top-right{display:flex;align-items:center;gap:16px}
+#btn-lang{background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-family:var(--font-title);font-size:11px;padding:4px 14px;cursor:pointer;border-radius:3px;transition:.2s}
+#btn-lang:hover{background:rgba(0,212,255,0.15);box-shadow:0 0 8px rgba(0,212,255,0.3)}
+#met-clock{font-family:var(--font-mono);font-size:13px;color:var(--green);letter-spacing:1px}
+
+/* ── PANELS ── */
+#control-panel,#telemetry-panel{overflow-y:auto;padding:10px 12px;border-right:1px solid var(--border);background:var(--panel);z-index:5}
+#telemetry-panel{border-right:none;border-left:1px solid var(--border)}
+#control-panel::-webkit-scrollbar,#telemetry-panel::-webkit-scrollbar{width:4px}
+#control-panel::-webkit-scrollbar-thumb,#telemetry-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.section{margin-bottom:14px}
+.section-title{font-family:var(--font-title);font-size:10px;font-weight:500;color:var(--cyan);letter-spacing:2px;
+  text-transform:uppercase;padding-bottom:6px;margin-bottom:8px;border-bottom:1px solid rgba(0,180,240,0.15)}
+
+/* Sliders */
+.slider-row{margin-bottom:8px}
+.slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:10px;color:var(--dim)}
+.slider-value{color:var(--green);font-size:11px;min-width:60px;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(0,180,240,0.15);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--cyan);cursor:pointer;box-shadow:0 0 6px rgba(0,212,255,0.5)}
+
+/* Checkbox */
+.check-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;font-size:11px}
+.check-row input[type=checkbox]{accent-color:var(--cyan);width:14px;height:14px;cursor:pointer}
+
+/* Color */
+.color-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px}
+.color-row input[type=color]{width:28px;height:20px;border:1px solid var(--border);background:transparent;cursor:pointer;border-radius:2px}
+
+/* Buttons */
+.btn-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.btn{font-family:var(--font-title);font-size:10px;font-weight:500;letter-spacing:1px;padding:7px 0;border:1px solid;
+  border-radius:3px;cursor:pointer;background:transparent;transition:.25s;flex:1;min-width:70px;text-align:center}
+.btn-launch{color:var(--green);border-color:var(--green)}
+.btn-launch:hover{background:rgba(0,255,136,0.15);box-shadow:0 0 10px rgba(0,255,136,0.3)}
+.btn-pause{color:var(--amber);border-color:var(--amber)}
+.btn-pause:hover{background:rgba(255,170,0,0.15);box-shadow:0 0 10px rgba(255,170,0,0.3)}
+.btn-reset{color:var(--red);border-color:var(--red)}
+.btn-reset:hover{background:rgba(255,51,68,0.15);box-shadow:0 0 10px rgba(255,51,68,0.3)}
+.btn-add{color:var(--cyan);border-color:var(--cyan)}
+.btn-add:hover{background:rgba(0,212,255,0.15);box-shadow:0 0 10px rgba(0,212,255,0.3)}
+
+/* ── TELEMETRY ── */
+.telem-item{margin-bottom:12px}
+.telem-label{font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.telem-value{font-size:20px;color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.3);letter-spacing:1px}
+.telem-unit{font-size:10px;color:var(--dim);margin-left:4px}
+.telem-value.small{font-size:14px}
+
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.status-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.status-dot.red{background:var(--red);box-shadow:0 0 6px var(--red)}
+
+/* ── SCENE ── */
+#scene-container{position:relative;overflow:hidden;background:#000}
+#scene-container canvas{display:block}
+
+/* ── BOTTOM BAR ── */
+#bottom-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+  background:var(--panel);border-top:1px solid var(--border);z-index:10}
+#status-indicator{display:flex;align-items:center;font-size:11px;letter-spacing:1px}
+#sim-time{font-size:12px;color:var(--green);letter-spacing:1px}
+
+/* ── Scanline overlay ── */
+#scene-container::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);z-index:1}
+
+/* Pulse animation */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse{animation:pulse 1.5s infinite}
+
+/* Tooltips */
+.help-icon{display:inline-flex;justify-content:center;align-items:center;width:12px;height:12px;border-radius:50%;border:1px solid var(--dim);color:var(--dim);font-size:9px;margin-left:6px;cursor:help;position:relative;transition:0.2s;vertical-align:middle}
+.help-icon:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,0.1);z-index:100}
+.help-icon::after{content:attr(data-tooltip);position:absolute;left:-10px;top:20px;width:170px;background:var(--panel);border:1px solid var(--border);padding:6px 8px;border-radius:4px;font-size:10px;color:rgba(255,255,255,0.9);text-transform:none;line-height:1.4;pointer-events:none;opacity:0;transition:0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.6);text-align:left;font-family:sans-serif;letter-spacing:normal;z-index:9999}
+.help-icon:hover::after{opacity:1}
+</style>
+</head>
+
+<body>
+<div id="app">
+
+<!-- ═══ TOP BAR ═══ -->
+<div id="top-bar">
+  <div style="display:flex;align-items:baseline">
+    <span class="logo" data-i18n="title">СИМУЛЯТОР ЧЁРНОЙ ДЫРЫ</span>
+    <span class="sub" data-i18n="subtitle">ОРБИТАЛЬНАЯ МЕХАНИКА</span>
+  </div>
+  <div class="top-right">
+    <button id="btn-lang" onclick="toggleLang()">EN</button>
+    <div id="met-clock">MET 00:00:00</div>
+  </div>
+</div>
+
+<!-- ═══ CONTROL PANEL ═══ -->
+<div id="control-panel">
+
+  <!-- BH Mass -->
+  <div class="section">
+    <div class="section-title" data-i18n="bhMass">МАССА ЧЁРНОЙ ДЫРЫ</div>
+    <div class="slider-row">
+      <div class="slider-label"><span data-i18n="bhMass">МАССА ЧД</span><span class="slider-value" id="val-bh-mass">10 M☉</span></div>
+      <input type="range" id="sl-bh-mass" min="1" max="100" value="10" step="1">
+    </div>
+    <div class="slider-row">
+      <div class="slider-label"><span data-i18n="schwarzschildRadius">РАДИУС ШВАРЦШИЛЬДА</span><span class="slider-value" id="val-rs">29.5 км</span></div>
+    </div>
+  </div>
+
+  <!-- Body Params -->
+  <div class="section">
+    <div class="section-title" data-i18n="parameters">ПАРАМЕТРЫ ТЕЛА</div>
+    <div class="slider-row">
+      <div class="slider-label"><span data-i18n="bodyMass">МАССА ТЕЛА</span><span class="slider-value" id="val-body-mass">1 M⊕</span></div>
+      <input type="range" id="sl-body-mass" min="0.1" max="10000" value="1" step="0.1">
+    </div>
+    <div class="slider-row">
+      <div class="slider-label"><span data-i18n="bodyRadius">РАДИУС ОРБИТЫ</span><span class="slider-value" id="val-body-radius">10 Rs</span></div>
+      <input type="range" id="sl-body-radius" min="3" max="50" value="10" step="0.5">
+    </div>
+    <div class="slider-row">
+      <div class="slider-label"><span data-i18n="bodySpeed">СКОРОСТЬ</span><span class="slider-value" id="val-body-speed">1.00x</span></div>
+      <input type="range" id="sl-body-speed" min="0.1" max="3" value="1" step="0.01">
+    </div>
+    <div class="slider-row">
+      <div class="slider-label"><span data-i18n="bodyAngle">УГОЛ СКОРОСТИ</span><span class="slider-value" id="val-body-angle">0°</span></div>
+      <input type="range" id="sl-body-angle" min="0" max="360" value="0" step="1">
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="section">
+    <div class="section-title" data-i18n="controls">УПРАВЛЕНИЕ</div>
+    <div class="btn-group">
+      <button class="btn btn-launch" id="btn-launch" data-i18n="launch">ЗАПУСК</button>
+      <button class="btn btn-pause" id="btn-pause" data-i18n="pause">ПАУЗА</button>
+    </div>
+    <div class="btn-group" style="margin-top:6px">
+      <button class="btn btn-reset" id="btn-reset" data-i18n="reset">СБРОС</button>
+      <button class="btn btn-add" id="btn-add" data-i18n="addBody">ДОБАВИТЬ ТЕЛО</button>
+      <button class="btn btn-pause" id="btn-remove-last" style="color:var(--amber);border-color:var(--amber)" data-i18n="removeLast">УБРАТЬ ПОСЛ.</button>
+    </div>
+    <div class="slider-row" style="margin-top:10px">
+      <div class="slider-label"><span data-i18n="timeScale">СКОРОСТЬ АНИМАЦИИ</span><span class="slider-value" id="val-time-scale">1.0x</span></div>
+      <input type="range" id="sl-time-scale" min="0.1" max="10" value="1" step="0.1">
+    </div>
+  </div>
+
+  <!-- Visualization -->
+  <div class="section">
+    <div class="section-title" data-i18n="visualization">ВИЗУАЛИЗАЦИЯ</div>
+    <label class="check-row"><input type="checkbox" id="chk-grid" checked><span data-i18n="grid">СЕТКА ПРОСТРАНСТВА</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-outline"><span data-i18n="outline">ОБВОДКА ЧД</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-orbit" checked><span data-i18n="orbit">ОРБИТА ЗАПУСКА</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-stars" checked><span data-i18n="stars">ЗВЁЗДНЫЙ ФОН</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-lensing"><span data-i18n="lensing">ГРАВИТАЦИОННОЕ ЛИНЗИРОВАНИЕ</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-accretion" checked><span data-i18n="accretion">АККРЕЦИОННЫЙ ДИСК</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-trail" checked><span data-i18n="trail">СЛЕД ТЕЛА</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-forces"><span data-i18n="forceLines" style="color:var(--cyan)">ЛИНИИ ГРАВИТАЦИИ</span></label>
+  </div>
+
+  <!-- Colors -->
+  <div class="section">
+    <div class="section-title" data-i18n="colors">ЦВЕТА</div>
+    <div class="color-row"><input type="color" id="clr-grid" value="#00b4d8"><span data-i18n="gridColor">ЦВЕТ СЕТКИ</span></div>
+    <div class="color-row"><input type="color" id="clr-body" value="#ff6b35"><span data-i18n="bodyColor">ЦВЕТ ТЕЛА</span></div>
+    <div class="color-row"><input type="color" id="clr-orbit" value="#00ff88"><span data-i18n="orbitColor">ЦВЕТ ОРБИТЫ</span></div>
+  </div>
+
+  <!-- Sound -->
+  <div class="section">
+    <div class="section-title" data-i18n="sound">ЗВУК</div>
+    <label class="check-row"><input type="checkbox" id="chk-ambient"><span data-i18n="ambient">ЭМБИЕНТ</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-bh-sound"><span data-i18n="bhSound">ЗВУК ЧД</span></label>
+    <label class="check-row"><input type="checkbox" id="chk-interstellar"><span data-i18n="interstellar" style="color:var(--cyan)">МУЗЫКА INTERSTELLAR</span></label>
+    <div class="slider-row" style="margin-top:4px">
+      <div class="slider-label"><span data-i18n="volume">ГРОМКОСТЬ</span><span class="slider-value" id="val-volume">50%</span></div>
+      <input type="range" id="sl-volume" min="0" max="100" value="50" step="1">
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCENE ═══ -->
+<div id="scene-container"></div>
+
+<!-- ═══ TELEMETRY PANEL ═══ -->
+<div id="telemetry-panel">
+  <div class="section">
+    <div class="section-title" data-i18n="telemetry">ТЕЛЕМЕТРИЯ</div>
+
+    <div class="telem-item" style="border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:12px;">
+      <div class="telem-label" data-i18n="selectBody" style="margin-bottom:6px; color:var(--cyan)">ВЫБОР ТЕЛА</div>
+      <div id="tel-body-tabs" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+    </div>
+
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="velocity">СКОРОСТЬ</span><span class="help-icon" data-i18n-tooltip="ttVelocity">?</span></div>
+      <div class="telem-value" id="tel-velocity">0<span class="telem-unit" data-i18n="kms">км/с</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="orbitalSpeed">ОРБИТ. СКОРОСТЬ</span><span class="help-icon" data-i18n-tooltip="ttOrbital">?</span></div>
+      <div class="telem-value" id="tel-orbital">0<span class="telem-unit" data-i18n="kms">км/с</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="distance">РАССТОЯНИЕ</span><span class="help-icon" data-i18n-tooltip="ttDistance">?</span></div>
+      <div class="telem-value" id="tel-distance">—<span class="telem-unit">Rs</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="orbitalPeriod">ПЕРИОД ОБРАЩЕНИЯ</span><span class="help-icon" data-i18n-tooltip="ttPeriod">?</span></div>
+      <div class="telem-value small" id="tel-period">—<span class="telem-unit" data-i18n="sec">с</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="timeDilation">ЗАМЕДЛЕНИЕ ВРЕМЕНИ</span><span class="help-icon" data-i18n-tooltip="ttTimeDilation">?</span></div>
+      <div class="telem-value small" id="tel-dilation" style="color:var(--cyan)">1h = 1h</div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="bodyGravity">ГРАВИТАЦИЯ ТЕЛА</span><span class="help-icon" data-i18n-tooltip="ttBodyGravity">?</span></div>
+      <div class="telem-value small" id="tel-gravity">—<span class="telem-unit">g</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="tidalForce">ПРИЛИВНАЯ СИЛА</span><span class="help-icon" data-i18n-tooltip="ttTidalForce">?</span></div>
+      <div class="telem-value small" id="tel-tidal">—<span class="telem-unit">g</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="orbitStatus">СТАТУС ОРБИТЫ</span><span class="help-icon" data-i18n-tooltip="ttStatus">?</span></div>
+      <div class="telem-value small" id="tel-status"><span class="status-dot green"></span><span data-i18n="ready">ГОТОВ</span></div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="bodyCount">КОЛИЧЕСТВО ТЕЛ</span><span class="help-icon" data-i18n-tooltip="ttCount">?</span></div>
+      <div class="telem-value small" id="tel-count">0</div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="bhMassDisplay">МАССА ЧД</span><span class="help-icon" data-i18n-tooltip="ttBhMass">?</span></div>
+      <div class="telem-value small" id="tel-bh-mass">10 M☉</div>
+    </div>
+    <div class="telem-item">
+      <div class="telem-label"><span data-i18n="schwarzschildRadius">РАДИУС ШВАРЦШИЛЬДА</span><span class="help-icon" data-i18n-tooltip="ttRs">?</span></div>
+      <div class="telem-value small" id="tel-rs">29.5 <span class="telem-unit">км</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BOTTOM BAR ═══ -->
+<div id="bottom-bar">
+  <div id="status-indicator"><span class="status-dot green" id="status-dot"></span><span id="status-text" data-i18n="ready">ГОТОВ К ЗАПУСКУ</span></div>
+  <div id="sim-time">T+ 00:00:00.0</div>
+</div>
+
+</div><!-- end #app -->
+
+<script type="importmap">
+{
+  "imports":{
+    "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
+
+/* ═══════════════════════════════════════════
+   CONSTANTS
+   ═══════════════════════════════════════════ */
+const G=6.674e-11, C=299792458, M_SUN=1.989e30, M_EARTH=5.972e24;
+
+/* ═══════════════════════════════════════════
+   I18N
+   ═══════════════════════════════════════════ */
+const TR={
+ru:{title:'СИМУЛЯТОР ЧЁРНОЙ ДЫРЫ',subtitle:'ОРБИТАЛЬНАЯ МЕХАНИКА',bhMass:'МАССА ЧЁРНОЙ ДЫРЫ',schwarzschildRadius:'РАДИУС ШВАРЦШИЛЬДА',
+parameters:'ПАРАМЕТРЫ ТЕЛА',bodyMass:'МАССА ТЕЛА',bodyRadius:'РАДИУС ОРБИТЫ',bodySpeed:'СКОРОСТЬ',bodyAngle:'УГОЛ СКОРОСТИ',
+controls:'УПРАВЛЕНИЕ',launch:'ЗАПУСК',pause:'ПАУЗА',resume:'ПРОДОЛЖИТЬ',reset:'СБРОС',addBody:'ДОБАВИТЬ ТЕЛО',timeScale:'СКОРОСТЬ АНИМАЦИИ',
+visualization:'ВИЗУАЛИЗАЦИЯ',grid:'СЕТКА ПРОСТРАНСТВА',outline:'ОБВОДКА ЧД',orbit:'ОРБИТА ЗАПУСКА',stars:'ЗВЁЗДНЫЙ ФОН',
+lensing:'ГРАВИТАЦИОННОЕ ЛИНЗИРОВАНИЕ',accretion:'АККРЕЦИОННЫЙ ДИСК',trail:'СЛЕД ТЕЛА',
+colors:'ЦВЕТА',gridColor:'ЦВЕТ СЕТКИ',bodyColor:'ЦВЕТ ТЕЛА',orbitColor:'ЦВЕТ ОРБИТЫ',
+sound:'ЗВУК',ambient:'ЭМБИЕНТ',bhSound:'ЗВУК ЧД',volume:'ГРОМКОСТЬ',
+telemetry:'ТЕЛЕМЕТРИЯ',velocity:'СКОРОСТЬ',orbitalSpeed:'ОРБИТ. СКОРОСТЬ',distance:'РАССТОЯНИЕ',
+orbitalPeriod:'ПЕРИОД ОБРАЩЕНИЯ',orbitStatus:'СТАТУС ОРБИТЫ',bodyCount:'КОЛИЧЕСТВО ТЕЛ',bhMassDisplay:'МАССА ЧД',
+kms:'км/с',sec:'с',ready:'ГОТОВ К ЗАПУСКУ',running:'СИМУЛЯЦИЯ АКТИВНА',paused:'ПАУЗА',
+stable:'СТАБИЛЬНАЯ',unstable:'НЕСТАБИЛЬНАЯ',captured:'ЗАХВАЧЕНО',escaped:'ПОКИНУЛО СИСТЕМУ',noBody:'НЕТ ТЕЛ',
+ttVelocity:'Текущая физическая скорость выбранного/последнего тела в пространстве.',
+ttOrbital:'Круговая орбитальная скорость для текущей высоты тела.',
+ttDistance:'Расстояние тела до сингулярности в радиусах Шварцшильда (Rs).',
+ttPeriod:'Время одного полного оборота вокруг чёрной дыры на текущей орбите.',
+ttStatus:'Оценка траектории: стабильная орбита, падение за горизонт событий или вылет.',
+ttCount:'Общее количество активных объектов (тел) в симуляции.',
+ttBhMass:'Масса сингулярности, выраженная в массах Солнца (M☉).',
+ttRs:'Радиус горизонта событий. За этой границей гравитация не отпускает даже свет.',
+removeLast:'УБРАТЬ ПОСЛ.',
+timeDilation:'ЗАМЕДЛЕНИЕ ВРЕМЕНИ',
+bodyGravity:'ГРАВИТАЦИЯ ТЕЛА',
+tidalForce:'ПРИЛИВНАЯ СИЛА',
+ttTimeDilation:'Время на орбите течет медленнее относительно Земли из-за релятивистских эффектов.',
+ttBodyGravity:'Ускорение свободного падения на поверхности планеты (1g = 9.8 м/с²), предполагая земную плотность.',
+ttTidalForce:'Разница гравитационного притяжения ЧД между двумя сторонами планеты. Если она больше гравитации тела, то планету разорвёт (спагеттификация)!',
+selectBody:'ВЫБОР ТЕЛА',
+interstellar:'МУЗЫКА ИНТЕРСТЕЛЛАР',
+forceLines:'ЛИНИИ ГРАВИТАЦИИ'
+},
+en:{title:'BLACK HOLE SIMULATOR',subtitle:'ORBITAL MECHANICS',bhMass:'BLACK HOLE MASS',schwarzschildRadius:'SCHWARZSCHILD RADIUS',
+parameters:'BODY PARAMETERS',bodyMass:'BODY MASS',bodyRadius:'ORBITAL RADIUS',bodySpeed:'VELOCITY',bodyAngle:'VELOCITY ANGLE',
+controls:'CONTROLS',launch:'LAUNCH',pause:'PAUSE',resume:'RESUME',reset:'RESET',addBody:'ADD BODY',timeScale:'ANIMATION SPEED',
+visualization:'VISUALIZATION',grid:'SPACETIME GRID',outline:'BH OUTLINE',orbit:'LAUNCH ORBIT',stars:'STARFIELD',
+lensing:'GRAVITATIONAL LENSING',accretion:'ACCRETION DISK',trail:'BODY TRAIL',
+colors:'COLORS',gridColor:'GRID COLOR',bodyColor:'BODY COLOR',orbitColor:'ORBIT COLOR',
+sound:'SOUND',ambient:'AMBIENT',bhSound:'BH SOUND',volume:'VOLUME',
+telemetry:'TELEMETRY',velocity:'VELOCITY',orbitalSpeed:'ORBITAL SPEED',distance:'DISTANCE',
+orbitalPeriod:'ORBITAL PERIOD',orbitStatus:'ORBIT STATUS',bodyCount:'BODY COUNT',bhMassDisplay:'BH MASS',
+kms:'km/s',sec:'s',ready:'READY FOR LAUNCH',running:'SIMULATION ACTIVE',paused:'PAUSED',
+stable:'STABLE',unstable:'UNSTABLE',captured:'CAPTURED',escaped:'ESCAPED',noBody:'NO BODIES',
+ttVelocity:'Current physical velocity of the selected/latest body in space.',
+ttOrbital:'Circular velocity for the current altitude.',
+ttDistance:'Distance from the body to the singularity in Schwarzschild radii (Rs).',
+ttPeriod:'Time taken for one full revolution around the black hole on the current orbit.',
+ttStatus:'Trajectory assessment: stable orbit, event horizon capture, or escape from the system.',
+ttCount:'Total number of active bodies in the simulation.',
+ttBhMass:'Mass of the singularity in Solar masses (M☉).',
+ttRs:'Event horizon radius. Beyond this boundary, gravity traps even light.',
+removeLast:'REMOVE LAST',
+timeDilation:'TIME DILATION',
+bodyGravity:'BODY GRAVITY',
+tidalForce:'TIDAL FORCE',
+ttTimeDilation:'Time flows slower on orbit relative to Earth due to relativistic time dilation.',
+ttBodyGravity:'Surface gravity of the planet (1g = 9.8 m/s²), assuming Earth-like density.',
+ttTidalForce:'Difference in black hole gravitational pull between the near and far sides of the planet. If this exceeds body gravity, it gets torn apart!',
+selectBody:'SELECT BODY',
+interstellar:'INTERSTELLAR BGM',
+forceLines:'FORCE LINES'}
+};
+let lang='ru';
+function t(k){return TR[lang][k]||k}
+function applyLang(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(TR[lang][k])el.textContent=TR[lang][k]});
+  document.querySelectorAll('[data-i18n-tooltip]').forEach(el=>{const k=el.dataset.i18nTooltip;if(TR[lang][k])el.setAttribute('data-tooltip',TR[lang][k])});
+  updateStatusText();
+}
+window.toggleLang=()=>{lang=lang==='ru'?'en':'ru';document.getElementById('btn-lang').textContent=lang==='ru'?'EN':'RU';applyLang()};
+
+/* ═══════════════════════════════════════════
+   CONFIG & STATE
+   ═══════════════════════════════════════════ */
+const cfg={bhMass:10,bodyMass:1,bodyRadius:10,speedFactor:1,angle:0,timeScale:1,
+  showGrid:true,showOutline:false,showOrbit:true,showStars:true,showLensing:false,showAccretion:true,showTrail:true,showForces:false,
+  gridColor:'#00b4d8',bodyColor:'#ff6b35',orbitColor:'#00ff88'};
+let isPaused=false,isRunning=false,simTime=0,bodies=[],lastTime=0,activeTelemIdx=0,bodyIdCounter=0;
+
+function Rs(){return 2*G*cfg.bhMass*M_SUN/(C*C)}
+function vCirc(rMeters){return Math.sqrt(G*cfg.bhMass*M_SUN/rMeters)}
+
+/* ═══════════════════════════════════════════
+   THREE.JS SCENE
+   ═══════════════════════════════════════════ */
+const container=document.getElementById('scene-container');
+let scene,camera,renderer,controls,composer,lensingPass;
+let bhGroup,bhMesh,bhOutline,accDisk,gridMesh,starsPoints,milkyWay,orbitPreview;
+let forceLinesGroup;
+
+function initScene(){
+  scene=new THREE.Scene();
+  const w=container.clientWidth,h=container.clientHeight;
+  camera=new THREE.PerspectiveCamera(55,w/h,0.5,2000);
+  camera.position.set(20,15,25);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setSize(w,h);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setClearColor(0x000000);container.appendChild(renderer.domElement);
+  controls=new OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true;controls.dampingFactor=0.08;controls.minDistance=3;controls.maxDistance=200;
+  scene.add(new THREE.AmbientLight(0x334466,0.5));
+  const dir=new THREE.DirectionalLight(0xffffff,0.3);dir.position.set(10,20,10);scene.add(dir);
+  createBlackHole();createGrid();createStarfield();createOrbitPreview();setupPostProcessing();
+  forceLinesGroup=new THREE.Group();scene.add(forceLinesGroup);
+  window.addEventListener('resize',onResize);
+}
+
+/* ── Black Hole ── */
+function createBlackHole(){
+  bhGroup=new THREE.Group();scene.add(bhGroup);
+  // Event horizon sphere
+  const geo=new THREE.SphereGeometry(1,64,64);
+  bhMesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:0x000000}));
+  bhGroup.add(bhMesh);
+  // White outline
+  const edges=new THREE.EdgesGeometry(new THREE.SphereGeometry(1.01,32,32));
+  bhOutline=new THREE.LineSegments(edges,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.6}));
+  bhOutline.visible=cfg.showOutline;
+  bhGroup.add(bhOutline);
+  // Accretion disk
+  createAccretionDisk();
+}
+
+function createAccretionDisk(){
+  if(accDisk){bhGroup.remove(accDisk);accDisk.geometry.dispose();accDisk.material.dispose()}
+  // Interstellar disk extends further and is very dense near the ISCO
+  const inner=1.5,outer=8.0;
+  const geo=new THREE.RingGeometry(inner,outer,256,64);
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0},uInner:{value:inner},uOuter:{value:outer}},
+    vertexShader:`varying vec3 vPos; varying vec2 vUv; void main(){vUv=uv; vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`
+      varying vec3 vPos; varying vec2 vUv; uniform float uTime,uInner,uOuter;
+      float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+      float noise(vec2 p){
+        vec2 i=floor(p), f=fract(p);
+        vec2 u=f*f*(3.-2.*f);
+        return mix(mix(hash(i+vec2(0.,0.)),hash(i+vec2(1.,0.)),u.x),
+                   mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);
+      }
+      float fbm(vec2 p){
+        float v=0., a=.5;
+        for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.; a*=.5; }
+        return v;
+      }
+      void main(){
+        float r=length(vPos.xy); float ang=atan(vPos.y,vPos.x);
+        float t=clamp((r-uInner)/(uOuter-uInner),0.,1.);
+        
+        // Interstellar colors: extremely bright white-yellow inner, fading to orange/red outer
+        vec3 colCenter = vec3(1.0, 0.95, 0.85);
+        vec3 colMid = vec3(0.9, 0.45, 0.1);
+        vec3 colEdge = vec3(0.2, 0.02, 0.0);
+        
+        vec3 col;
+        if (t < 0.25) col = mix(colCenter, colMid, t/0.25);
+        else col = mix(colMid, colEdge, (t-0.25)/0.75);
+        
+        // Add dust lanes and turbulence using seamless cartesian noise and differential rotation
+        float rsp = uTime * 3.0 / sqrt(r);
+        float c1 = cos(rsp), s1 = sin(rsp);
+        vec2 rot1 = vec2(vPos.x*c1 - vPos.y*s1, vPos.x*s1 + vPos.y*c1);
+        float n = fbm(rot1 * 2.0);
+        
+        // Doppler beaming: one side is brighter (periodic so no seam)
+        float doppler = 1.0 + 0.65*sin(ang - uTime*0.5);
+        col *= doppler;
+        
+        // Multi-layered noise for dust lanes
+        float rsp2 = uTime * 4.0 / sqrt(r);
+        float c2 = cos(rsp2), s2 = sin(rsp2);
+        vec2 rot2 = vec2(vPos.x*c2 - vPos.y*s2, vPos.x*s2 + vPos.y*c2);
+        float dust = smoothstep(0.35, 0.65, fbm(rot2 * 4.0));
+        col *= mix(1.0, 0.4, dust);
+        
+        // Intensity curve
+        float alpha = smoothstep(0.0, 0.05, t) * smoothstep(1.0, 0.6, t);
+        
+        // Core glow
+        float glow = exp(-t * 12.0) * 1.5;
+        col += colCenter * glow;
+        
+        gl_FragColor=vec4(col * 1.3, alpha * (0.8 + 0.3*n));
+      }`,
+    side:THREE.DoubleSide,transparent:true,blending:THREE.AdditiveBlending,depthWrite:true
+  });
+  accDisk=new THREE.Mesh(geo,mat);accDisk.rotation.x=-Math.PI/2;
+  bhGroup.add(accDisk);
+}
+
+/* ── Space-Time Grid ── */
+function createGrid(){
+  if(gridMesh){scene.remove(gridMesh);gridMesh.geometry.dispose();gridMesh.material.dispose()}
+  const size=80,seg=100;
+  const geo=new THREE.PlaneGeometry(size,size,seg,seg);
+  geo.rotateX(-Math.PI/2);
+  deformGrid(geo);
+  const mat=new THREE.MeshBasicMaterial({color:cfg.gridColor,wireframe:true,transparent:true,opacity:0.25});
+  gridMesh=new THREE.Mesh(geo,mat);scene.add(gridMesh);
+}
+
+function deformGrid(geo){
+  const pos=geo.attributes.position;
+  // Use a fractional power (0.15) to compress the massive astronomical difference
+  // between Solar Masses and Earth Masses into a visually pleasing, monotonic scale.
+  const depthScale = 3.0; // Global multiplier
+  const bhDepth = depthScale * Math.pow(cfg.bhMass, 0.15);
+  const rs=Rs();
+
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),z=pos.getZ(i);
+    const bhDist=Math.sqrt(x*x+z*z);
+    
+    // Smooth inverse square well for the Black hole
+    let totalY = -bhDepth / (bhDist*bhDist*0.03 + 0.8);
+    
+    for(let b of bodies){
+      if(!b.alive) continue;
+      const bx=b.x/rs, bz=b.z/rs;
+      const dx=x-bx, dz=z-bz;
+      const bDist=Math.sqrt(dx*dx+dz*dz);
+      
+      const bodyMassSolar = b.mass / M_SUN;
+      const bDepth = depthScale * Math.pow(bodyMassSolar, 0.15);
+      
+      // Make the width of the planetary well proportional to its relative mass 
+      // so planets don't pull the entire grid like the BH does.
+      const wellWidth = Math.max(0.2, Math.pow(bodyMassSolar, 0.15) * 2.0);
+      
+      totalY -= bDepth / (bDist*bDist / wellWidth + 0.6);
+    }
+    pos.setY(i,totalY);
+  }
+  pos.needsUpdate=true;geo.computeVertexNormals();
+}
+
+function updateGrid(){
+  if(!gridMesh)return;
+  deformGrid(gridMesh.geometry);
+  gridMesh.material.color.set(cfg.gridColor);
+}
+
+/* ── Starfield ── */
+function createStarfield(){
+  const n=8000;const positions=new Float32Array(n*3),sizes=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const theta=Math.random()*Math.PI*2,phi=Math.acos(2*Math.random()-1);
+    const r=400+Math.random()*400;
+    positions[i*3]=r*Math.sin(phi)*Math.cos(theta);
+    positions[i*3+1]=r*Math.sin(phi)*Math.sin(theta);
+    positions[i*3+2]=r*Math.cos(phi);
+    sizes[i]=Math.random()*1.5+.3;
+  }
+  // Milky Way band (denser region)
+  const mw=4000;const mwPos=new Float32Array(mw*3),mwSz=new Float32Array(mw);
+  for(let i=0;i<mw;i++){
+    const th=Math.random()*Math.PI*2;
+    const spread=(Math.random()-.5)*.22;
+    const r=350+Math.random()*300;
+    mwPos[i*3]=r*Math.cos(th);mwPos[i*3+1]=r*spread;mwPos[i*3+2]=r*Math.sin(th);
+    mwSz[i]=Math.random()*.8+.2;
+  }
+  const sGeo=new THREE.BufferGeometry();sGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  starsPoints=new THREE.Points(sGeo,new THREE.PointsMaterial({color:0xffffff,size:.6,sizeAttenuation:true}));
+  scene.add(starsPoints);
+  const mGeo=new THREE.BufferGeometry();mGeo.setAttribute('position',new THREE.BufferAttribute(mwPos,3));
+  milkyWay=new THREE.Points(mGeo,new THREE.PointsMaterial({color:0xccbbff,size:.4,sizeAttenuation:true,transparent:true,opacity:.6}));
+  scene.add(milkyWay);
+}
+
+/* ── Orbit Preview ── */
+function createOrbitPreview(){
+  const pts=[];for(let i=0;i<=128;i++){const a=i/128*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*cfg.bodyRadius,0,Math.sin(a)*cfg.bodyRadius))}
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=new THREE.LineDashedMaterial({color:cfg.orbitColor,dashSize:.5,gapSize:.3,transparent:true,opacity:.5});
+  orbitPreview=new THREE.Line(geo,mat);orbitPreview.computeLineDistances();scene.add(orbitPreview);
+}
+
+function updateOrbitPreview(){
+  if(!orbitPreview)return;
+  const pts=[];for(let i=0;i<=128;i++){const a=i/128*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*cfg.bodyRadius,0,Math.sin(a)*cfg.bodyRadius))}
+  orbitPreview.geometry.dispose();orbitPreview.geometry=new THREE.BufferGeometry().setFromPoints(pts);
+  orbitPreview.computeLineDistances();orbitPreview.material.color.set(cfg.orbitColor);
+}
+
+/* ── Force Lines ── */
+function updateForceLines(){
+  forceLinesGroup.clear();
+  if(!cfg.showForces) return;
+  const alive=bodies.filter(b=>b.alive);
+  const rs=Rs();
+  const bhPos=new THREE.Vector3(0,0,0);
+
+  alive.forEach(b=>{
+    const p=b.mesh.position;
+    // Line to Black Hole
+    const distBH = p.length();
+    const opacityBH = Math.min(1.0, 0.1 + (10/distBH));
+    createForceLine(p, bhPos, b.color, opacityBH * 0.6);
+
+    // Lines to other bodies
+    alive.forEach(other=>{
+      if(other===b)return;
+      const pOther=other.mesh.position;
+      const d=p.distanceTo(pOther);
+      if(d<15){ // only show nearby connections
+        const forceStr = (b.mass * other.mass) / (d*d*1e24); // heuristic for visibility
+        const opacity = Math.min(0.5, forceStr * 0.5);
+        if(opacity > 0.05) {
+          createForceLine(p, pOther, '#ffffff', opacity);
+        }
+      }
+    });
+  });
+}
+
+function createForceLine(v1, v2, color, opacity){
+  const geo=new THREE.BufferGeometry().setFromPoints([v1, v2]);
+  const mat=new THREE.LineBasicMaterial({color:color, transparent:true, opacity:opacity, blending:THREE.AdditiveBlending});
+  const line=new THREE.Line(geo, mat);
+  forceLinesGroup.add(line);
+}
+
+/* ── Post-Processing (Lensing) ── */
+function setupPostProcessing(){
+  const w=container.clientWidth, h=container.clientHeight;
+  const rt=new THREE.WebGLRenderTarget(w,h);
+  rt.depthTexture=new THREE.DepthTexture();
+  rt.depthTexture.type=THREE.UnsignedShortType;
+  composer=new EffectComposer(renderer,rt);
+  composer.addPass(new RenderPass(scene,camera));
+  const lensShader={
+    uniforms:{tDiffuse:{value:null},tDepth:{value:rt.depthTexture},bhPos:{value:new THREE.Vector2(.5,.5)},bhZ:{value:0.5},eRadius:{value:.08},ehVisual:{value:.02},strength:{value:1},res:{value:new THREE.Vector2(w,h)}},
+    vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`
+      uniform sampler2D tDiffuse;uniform sampler2D tDepth;
+      uniform vec2 bhPos,res;uniform float eRadius,ehVisual,strength,bhZ;
+      varying vec2 vUv;
+      void main(){
+        float depth=texture2D(tDepth,vUv).r;
+        if(depth<bhZ-0.0005){gl_FragColor=texture2D(tDiffuse,vUv);return;}
+        vec2 uv=vUv;
+        vec2 asp=vec2(res.x/res.y,1.);
+        vec2 d=(uv-bhPos)*asp;
+        float dist=length(d);
+        vec2 dir=dist>0.001?normalize(d):vec2(0.);
+        // Gravitational lensing: pull UV toward BH center
+        // Light from behind the BH bends around it
+        float deflection=eRadius*eRadius/(dist*dist+0.0001)*strength;
+        deflection=min(deflection,0.5);
+        // Only distort — pull sample point toward BH center
+        vec2 lensedUV=uv-dir*deflection*0.12/asp;
+        lensedUV=clamp(lensedUV,0.,1.);
+        
+        float srcDepth=texture2D(tDepth,lensedUV).r;
+        vec4 col;
+        if(srcDepth < bhZ - 0.0005){
+          // Lensed sample hit a foreground object. Reject it to avoid stretching it.
+          col=texture2D(tDiffuse, uv);
+        } else {
+          col=texture2D(tDiffuse, lensedUV);
+        }
+        
+        // Event horizon — pure black
+        if(dist<ehVisual){
+          gl_FragColor=vec4(0.,0.,0.,1.);return;
+        }
+        gl_FragColor=col;
+      }`
+  };
+  lensingPass=new ShaderPass(lensShader);composer.addPass(lensingPass);
+}
+
+function updateLensing(){
+  if(!lensingPass)return;
+  const v=new THREE.Vector3(0,0,0).project(camera);
+  lensingPass.uniforms.bhPos.value.set((v.x+1)/2,(v.y+1)/2);
+  lensingPass.uniforms.bhZ.value=(v.z+1)/2;
+  const d=camera.position.length();
+  const er=Math.min(cfg.bhMass*.12/d,.25);
+  lensingPass.uniforms.eRadius.value=er;
+  lensingPass.uniforms.ehVisual.value=er*0.22;
+  lensingPass.uniforms.res.value.set(container.clientWidth,container.clientHeight);
+}
+
+/* ═══════════════════════════════════════════
+   PHYSICS ENGINE
+   ═══════════════════════════════════════════ */
+function addBody(){
+  const rs=Rs();const r=cfg.bodyRadius*rs;
+  const vc=vCirc(r)*cfg.speedFactor;
+  const aRad=cfg.angle*Math.PI/180;
+  // Body starts at (r,0,0) in meters, velocity tangential in XZ plane
+  const vx=-vc*Math.sin(aRad)*Math.cos(0)+vc*Math.cos(aRad)*0;
+  const vz=vc*Math.cos(aRad);
+  const vy=-vc*Math.sin(aRad)*Math.sin(0);
+  bodyIdCounter++;
+  const body={
+    id:bodyIdCounter,
+    x:r,y:0,z:0,vx:0,vy:0,vz:vz,
+    mass:cfg.bodyMass*M_EARTH,
+    color:cfg.bodyColor,
+    trail:[],mesh:null,trailLine:null,orbitAngle:0,lastAngle:0,angularV:0,alive:true
+  };
+  // Adjust velocity direction based on angle
+  const speed=vc;
+  body.vx=-speed*Math.sin(aRad);
+  body.vz=speed*Math.cos(aRad);
+  body.vy=0;
+  // Create mesh
+  const geo=new THREE.SphereGeometry(.4,32,32);
+  const mat=new THREE.MeshStandardMaterial({
+    color:body.color, roughness:0.2, metalness:0.1,
+    emissive:body.color, emissiveIntensity:0.65
+  });
+  body.mesh=new THREE.Mesh(geo,mat);
+  body.mesh.position.set(body.x/rs,0,body.z/rs);
+  scene.add(body.mesh);
+  // Glow
+  const gl=new THREE.PointLight(body.color,.5,10);body.mesh.add(gl);
+  // Trail geometry
+  const tGeo=new THREE.BufferGeometry();
+  const tPos=new Float32Array(1500*3);
+  tGeo.setAttribute('position',new THREE.BufferAttribute(tPos,3));
+  tGeo.setDrawRange(0,0);
+  body.trailLine=new THREE.Line(tGeo,new THREE.LineBasicMaterial({color:body.color,transparent:true,opacity:.6}));
+  scene.add(body.trailLine);
+  body.trailIdx=0;body.trailCount=0;
+  bodies.push(body);
+  updateTelemetry();
+}
+
+function captureBody(b){
+  b.alive=false;
+  if(b.mesh)b.mesh.visible=false;
+  if(b.trailLine)b.trailLine.visible=false;
+}
+
+function physicsStep(dt){
+  const M=cfg.bhMass*M_SUN;const rs=Rs();
+  const captureR=rs*1.01; const escapeR=rs*100; const softening=rs*0.05;
+
+  // 1. Initial accelerations
+  for(let b of bodies){
+    if(!b.alive)continue;
+    let ax=0, ay=0, az=0;
+    const r=Math.sqrt(b.x*b.x+b.y*b.y+b.z*b.z);
+    if(r<=captureR){captureBody(b);continue}
+    if(r>escapeR){captureBody(b);continue}
+
+    const rSoft=Math.max(r,softening);
+    const aBH=G*M/(rSoft*rSoft);
+    ax+=-aBH*b.x/r; ay+=-aBH*b.y/r; az+=-aBH*b.z/r;
+
+    for(let other of bodies){
+      if(other===b||!other.alive)continue;
+      const dx=other.x-b.x, dy=other.y-b.y, dz=other.z-b.z;
+      const dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(dist>0){
+        const dSoft=Math.max(dist, softening);
+        const aBody=G*other.mass/(dSoft*dSoft);
+        ax+=aBody*dx/dist; ay+=aBody*dy/dist; az+=aBody*dz/dist;
+      }
+    }
+    b.ax=ax; b.ay=ay; b.az=az;
+  }
+
+  // 2. Position update
+  for(let b of bodies){
+    if(!b.alive)continue;
+    b.ox=b.x; b.oy=b.y; b.oz=b.z;
+    b.x+=b.vx*dt+.5*b.ax*dt*dt;
+    b.y+=b.vy*dt+.5*b.ay*dt*dt;
+    b.z+=b.vz*dt+.5*b.az*dt*dt;
+  }
+
+  // 3. New accelerations
+  for(let b of bodies){
+    if(!b.alive)continue;
+    let ax=0, ay=0, az=0;
+    const r=Math.sqrt(b.x*b.x+b.y*b.y+b.z*b.z);
+
+    if(r<=captureR){captureBody(b);continue}
+    const dxCross=b.x-b.ox, dyCross=b.y-b.oy, dzCross=b.z-b.oz;
+    const segLen2=dxCross*dxCross+dyCross*dyCross+dzCross*dzCross;
+    if(segLen2>0){
+      const tProj=-(b.ox*dxCross+b.oy*dyCross+b.oz*dzCross)/segLen2;
+      if(tProj>0&&tProj<1){
+        const cx=b.ox+tProj*dxCross,cy=b.oy+tProj*dyCross,cz=b.oz+tProj*dzCross;
+        const closestR=Math.sqrt(cx*cx+cy*cy+cz*cz);
+        if(closestR<=captureR){captureBody(b);continue}
+      }
+    }
+    if(r>escapeR){captureBody(b);continue}
+
+    const rSoft=Math.max(r,softening);
+    const aBH=G*M/(rSoft*rSoft);
+    ax+=-aBH*b.x/r; ay+=-aBH*b.y/r; az+=-aBH*b.z/r;
+
+    for(let other of bodies){
+      if(other===b||!other.alive)continue;
+      const dx=other.x-b.x, dy=other.y-b.y, dz=other.z-b.z;
+      const dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
+      if(dist>0){
+        const dSoft=Math.max(dist, softening);
+        const aBody=G*other.mass/(dSoft*dSoft);
+        ax+=aBody*dx/dist; ay+=aBody*dy/dist; az+=aBody*dz/dist;
+      }
+    }
+    b.axNew=ax; b.ayNew=ay; b.azNew=az;
+  }
+
+  // 4. Velocity update
+  for(let b of bodies){
+    if(!b.alive)continue;
+    b.vx+=.5*(b.ax+b.axNew)*dt;
+    b.vy+=.5*(b.ay+b.ayNew)*dt;
+    b.vz+=.5*(b.az+b.azNew)*dt;
+    
+    const angle=Math.atan2(b.z,b.x);
+    if(b.lastAngle!==undefined)b.angularV=(angle-b.lastAngle)/dt;
+    b.lastAngle=angle;
+  }
+}
+
+function updateBodies(){
+  const rs=Rs();
+  for(let b of bodies){
+    if(!b.alive||!b.mesh)continue;
+    const px=b.x/rs,py=b.y/rs,pz=b.z/rs;
+    b.mesh.position.set(px,py,pz);
+    // Trail
+    if(cfg.showTrail){
+      const tp=b.trailLine.geometry.attributes.position;
+      const idx=b.trailIdx*3;
+      tp.array[idx]=px;tp.array[idx+1]=py;tp.array[idx+2]=pz;
+      b.trailIdx=(b.trailIdx+1)%500;
+      b.trailCount=Math.min(b.trailCount+1,500);
+      tp.needsUpdate=true;
+      b.trailLine.geometry.setDrawRange(0,b.trailCount);
+      b.trailLine.visible=true;
+    }else{b.trailLine.visible=false}
+  }
+}
+
+/* ═══════════════════════════════════════════
+   AUDIO
+   ═══════════════════════════════════════════ */
+let audioCtx,masterGain,ambGain,bhGain,audioInited=false;
+let interGain,interMainMix,iszPlaying=false,iszTimer=null,iszStep=0;
+function initAudio(){
+  if(audioInited)return;
+  audioCtx=new AudioContext();
+  masterGain=audioCtx.createGain();masterGain.gain.value=.5;masterGain.connect(audioCtx.destination);
+  ambGain=audioCtx.createGain();ambGain.gain.value=0;ambGain.connect(masterGain);
+
+  // ── Melodic cosmic ambient (pentatonic pad) ──
+  const ambMerge=audioCtx.createGain();ambMerge.gain.value=1;
+  // Reverb-like delay feedback
+  const delay=audioCtx.createDelay(2);delay.delayTime.value=1.2;
+  const fb=audioCtx.createGain();fb.gain.value=0.25;
+  const dlpf=audioCtx.createBiquadFilter();dlpf.type='lowpass';dlpf.frequency.value=600;
+  ambMerge.connect(delay);delay.connect(fb);fb.connect(dlpf);dlpf.connect(delay);
+  delay.connect(ambGain);ambMerge.connect(ambGain);
+  // Pentatonic notes: C3, Eb3, F3, G3, Bb3, C4 (minor pentatonic for space feel)
+  const notes=[130.81,155.56,174.61,196.00,233.08,261.63];
+  notes.forEach((freq,i)=>{
+    const osc=audioCtx.createOscillator();osc.type='sine';osc.frequency.value=freq;
+    // Slow detune LFO for organic shimmer
+    const detLfo=audioCtx.createOscillator();detLfo.type='sine';detLfo.frequency.value=0.04+i*0.012;
+    const detG=audioCtx.createGain();detG.gain.value=2+i;detLfo.connect(detG);detG.connect(osc.detune);detLfo.start();
+    // Volume breathing LFO (each note fades in/out at different rate)
+    const vLfo=audioCtx.createOscillator();vLfo.type='sine';vLfo.frequency.value=0.02+i*0.007;
+    const vLfoG=audioCtx.createGain();vLfoG.gain.value=0.018;
+    const oscG=audioCtx.createGain();oscG.gain.value=0.025;
+    vLfo.connect(vLfoG);vLfoG.connect(oscG.gain);vLfo.start();
+    osc.connect(oscG);oscG.connect(ambMerge);osc.start();
+  });
+  // Soft high pad (octave up, very quiet)
+  const hiOsc=audioCtx.createOscillator();hiOsc.type='sine';hiOsc.frequency.value=523.25;
+  const hiG=audioCtx.createGain();hiG.gain.value=0.008;
+  const hiLfo=audioCtx.createOscillator();hiLfo.type='sine';hiLfo.frequency.value=0.015;
+  const hiLfoG=audioCtx.createGain();hiLfoG.gain.value=0.006;
+  hiLfo.connect(hiLfoG);hiLfoG.connect(hiG.gain);hiLfo.start();
+  hiOsc.connect(hiG);hiG.connect(ambMerge);hiOsc.start();
+
+  // ── BH sound (deep rumble based on NASA Perseus data) ──
+  bhGain=audioCtx.createGain();bhGain.gain.value=0;bhGain.connect(masterGain);
+  const o1=audioCtx.createOscillator();o1.type='sine';o1.frequency.value=36;
+  const o2=audioCtx.createOscillator();o2.type='sine';o2.frequency.value=55;
+  const o3=audioCtx.createOscillator();o3.type='triangle';o3.frequency.value=24;
+  const lfo=audioCtx.createOscillator();lfo.type='sine';lfo.frequency.value=.12;
+  const lfg=audioCtx.createGain();lfg.gain.value=5;lfo.connect(lfg);lfg.connect(o1.frequency);
+  const lfo2=audioCtx.createOscillator();lfo2.type='sine';lfo2.frequency.value=.07;
+  const lfg2=audioCtx.createGain();lfg2.gain.value=3;lfo2.connect(lfg2);lfg2.connect(o2.frequency);lfo2.start();
+  const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=100;
+  o1.connect(lp);o2.connect(lp);o3.connect(lp);lp.connect(bhGain);
+  o1.start();o2.start();o3.start();lfo.start();
+  
+  // ── Interstellar (Organ Synthesis) ──
+  interGain=audioCtx.createGain();interGain.gain.value=0;interGain.connect(masterGain);
+  interMainMix=audioCtx.createGain();interMainMix.connect(interGain);
+  // Heavy cinematic hall reverb
+  const id1=audioCtx.createDelay(1);id1.delayTime.value=0.33;
+  const id2=audioCtx.createDelay(1);id2.delayTime.value=0.47;
+  const ifb1=audioCtx.createGain();ifb1.gain.value=0.4;
+  const ifb2=audioCtx.createGain();ifb2.gain.value=0.35;
+  interMainMix.connect(id1);id1.connect(ifb1);ifb1.connect(id1);id1.connect(interGain);
+  interMainMix.connect(id2);id2.connect(ifb2);ifb2.connect(id2);id2.connect(interGain);
+  
+  audioInited=true;
+}
+function setAmbient(on){if(!audioInited)return;ambGain.gain.setTargetAtTime(on?.35:0,audioCtx.currentTime,.8)}
+function setBHSound(on){if(!audioInited)return;bhGain.gain.setTargetAtTime(on?.4:0,audioCtx.currentTime,.5)}
+function setVolume(v){if(!audioInited)return;masterGain.gain.setTargetAtTime(v,audioCtx.currentTime,.1)}
+
+function setInterstellar(on){
+  if(!audioInited)return;
+  iszPlaying=on;
+  if(on){
+    iszStep=0;
+    interGain.gain.setTargetAtTime(1.0, audioCtx.currentTime, 1.0);
+    scheduleISZ();
+  } else {
+    interGain.gain.setTargetAtTime(0, audioCtx.currentTime, 1.0);
+    clearTimeout(iszTimer);
+  }
+}
+
+function scheduleISZ(){
+  if(!iszPlaying||!audioInited)return;
+  const t=audioCtx.currentTime;
+  const play=(freq,dur,vol)=>{
+    const sines=[1,2,3,4,6];const vols=[1,0.5,0.2,0.1,0.05];
+    const g=audioCtx.createGain();
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol,t+0.05);
+    g.gain.setTargetAtTime(0,t+0.05+dur*0.6,0.15);
+    g.connect(interMainMix);
+    sines.forEach((h,i)=>{
+      const osc=audioCtx.createOscillator();osc.type='sine';osc.frequency.value=freq*h;
+      const og=audioCtx.createGain();og.gain.value=vols[i];
+      osc.connect(og);og.connect(g);
+      osc.start(t);osc.stop(t+dur);
+    });
+  };
+  const ostFreq=[440,659.25]; // A4, E5 (Cornfield Chase Ostinato)
+  const bassFreq=[220,174.61,146.83,164.81]; // A3, F3, D3, E3
+  play(ostFreq[iszStep%2], 0.3, 0.07);
+  if(iszStep%8===0){
+    const bIdx=Math.floor(iszStep/8)%4;
+    play(bassFreq[bIdx]/2, 3.0, 0.25); // sub
+    play(bassFreq[bIdx], 3.0, 0.15); // bass
+  }
+  iszStep++;
+  iszTimer=setTimeout(scheduleISZ, 175);
+}
+
+/* ═══════════════════════════════════════════
+   UI WIRING
+   ═══════════════════════════════════════════ */
+function $(id){return document.getElementById(id)}
+function initUI(){
+  // Sliders
+  $('sl-bh-mass').oninput=e=>{cfg.bhMass=+e.target.value;$('val-bh-mass').textContent=cfg.bhMass+' M☉';
+    const rsKm=(Rs()/1000).toFixed(1);$('val-rs').textContent=rsKm+(lang==='ru'?' км':' km');
+    $('tel-bh-mass').textContent=cfg.bhMass+' M☉';$('tel-rs').innerHTML=rsKm+' <span class="telem-unit">'+(lang==='ru'?'км':'km')+'</span>';
+    updateGrid();updateOrbitPreview()};
+  $('sl-body-mass').oninput=e=>{
+    cfg.bodyMass=+e.target.value;
+    let text=cfg.bodyMass<10?cfg.bodyMass.toFixed(1):Math.round(cfg.bodyMass).toLocaleString();
+    $('val-body-mass').textContent=text+' M⊕';
+  };
+  $('sl-body-radius').oninput=e=>{cfg.bodyRadius=+e.target.value;$('val-body-radius').textContent=cfg.bodyRadius+' Rs';updateOrbitPreview()};
+  $('sl-body-speed').oninput=e=>{cfg.speedFactor=+e.target.value;$('val-body-speed').textContent=cfg.speedFactor.toFixed(2)+'x'};
+  $('sl-body-angle').oninput=e=>{cfg.angle=+e.target.value;$('val-body-angle').textContent=cfg.angle+'°'};
+  $('sl-time-scale').oninput=e=>{cfg.timeScale=+e.target.value;$('val-time-scale').textContent=cfg.timeScale.toFixed(1)+'x'};
+  $('sl-volume').oninput=e=>{const v=+e.target.value;$('val-volume').textContent=v+'%';setVolume(v/100)};
+  // Checkboxes
+  $('chk-grid').onchange=e=>{cfg.showGrid=e.target.checked;if(gridMesh)gridMesh.visible=cfg.showGrid};
+  $('chk-outline').onchange=e=>{cfg.showOutline=e.target.checked;if(bhOutline)bhOutline.visible=cfg.showOutline};
+  $('chk-orbit').onchange=e=>{cfg.showOrbit=e.target.checked;if(orbitPreview)orbitPreview.visible=cfg.showOrbit};
+  $('chk-stars').onchange=e=>{cfg.showStars=e.target.checked;if(starsPoints)starsPoints.visible=cfg.showStars;if(milkyWay)milkyWay.visible=cfg.showStars};
+  $('chk-lensing').onchange=e=>{cfg.showLensing=e.target.checked};
+  $('chk-accretion').onchange=e=>{cfg.showAccretion=e.target.checked;if(accDisk)accDisk.visible=cfg.showAccretion};
+  $('chk-trail').onchange=e=>{cfg.showTrail=e.target.checked};
+  // Colors
+  $('clr-grid').oninput=e=>{cfg.gridColor=e.target.value;if(gridMesh)gridMesh.material.color.set(cfg.gridColor)};
+  $('clr-body').oninput=e=>{cfg.bodyColor=e.target.value};
+  $('clr-orbit').oninput=e=>{cfg.orbitColor=e.target.value;updateOrbitPreview()};
+  // Sound checkboxes
+  $('chk-ambient').onchange=e=>{initAudio();setAmbient(e.target.checked)};
+  $('chk-bh-sound').onchange=e=>{initAudio();setBHSound(e.target.checked)};
+  $('chk-interstellar').onchange=e=>{initAudio();setInterstellar(e.target.checked)};
+  // Buttons
+  $('btn-launch').onclick=()=>{
+    if(!isRunning){
+      isRunning=true;
+      addBody(); // exactly one body on launch
+      updateStatusText();
+    }
+  };
+  $('btn-pause').onclick=()=>{isPaused=!isPaused;$('btn-pause').textContent=isPaused?t('resume'):t('pause');updateStatusText()};
+  $('btn-reset').onclick=resetSim;
+  $('btn-add').onclick=()=>{addBody()};
+  $('btn-remove-last').onclick=()=>{
+    if(bodies.length>0){
+      const b=bodies.pop();
+      if(b.mesh){scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose();}
+      if(b.trailLine){scene.remove(b.trailLine);b.trailLine.geometry.dispose();b.trailLine.material.dispose();}
+      updateStatusText();
+    }
+  };
+}
+
+function resetSim(){
+  for(let b of bodies){if(b.mesh){scene.remove(b.mesh)}if(b.trailLine){scene.remove(b.trailLine)}}
+  bodies=[];isRunning=false;isPaused=false;simTime=0;
+  cfg.bhMass=10;cfg.bodyMass=1;cfg.bodyRadius=10;cfg.speedFactor=1;cfg.angle=0;cfg.timeScale=1;
+  $('sl-bh-mass').value=10;$('val-bh-mass').textContent='10 M☉';
+  $('sl-body-mass').value=1;$('val-body-mass').textContent='1.0 M⊕';
+  $('sl-body-radius').value=10;$('val-body-radius').textContent='10 Rs';
+  $('sl-body-speed').value=1;$('val-body-speed').textContent='1.00x';
+  $('sl-body-angle').value=0;$('val-body-angle').textContent='0°';
+  $('sl-time-scale').value=1;$('val-time-scale').textContent='1.0x';
+  const rsKm=(Rs()/1000).toFixed(1);$('val-rs').textContent=rsKm+(lang==='ru'?' км':' km');
+  $('tel-bh-mass').textContent='10 M☉';
+  updateGrid();updateOrbitPreview();updateStatusText();updateTelemetry();
+  $('btn-pause').textContent=t('pause');
+}
+
+function updateStatusText(){
+  const dot=$('status-dot'),txt=$('status-text');
+  if(!isRunning){dot.className='status-dot green';txt.textContent=t('ready')}
+  else if(isPaused){dot.className='status-dot amber';txt.textContent=t('paused')}
+  else{dot.className='status-dot green pulse';txt.textContent=t('running')}
+}
+
+function updateTelemetry(){
+  const alive=bodies.filter(b=>b.alive);
+  $('tel-count').textContent=alive.length;
+  
+  if(activeTelemIdx >= alive.length) activeTelemIdx = Math.max(0, alive.length - 1);
+  
+  const tabsContainer = $('tel-body-tabs');
+  if(tabsContainer) {
+    if(tabsContainer.children.length !== alive.length) {
+      tabsContainer.innerHTML='';
+      alive.forEach((b,i) => {
+        const btn=document.createElement('button');
+        btn.onclick=()=>{activeTelemIdx=i;updateTelemetry();};
+        tabsContainer.appendChild(btn);
+      });
+    }
+    alive.forEach((b,i) => {
+      const btn=tabsContainer.children[i];
+      btn.className='btn'+(i===activeTelemIdx?' btn-add':'');
+      btn.style.minWidth='35px';
+      btn.style.padding='2px 6px';
+      btn.style.color=b.color;
+      btn.style.borderColor=b.color;
+      if (i!==activeTelemIdx) { btn.style.background='transparent'; btn.style.opacity='0.6'; }
+      else { btn.style.background=b.color; btn.style.color='#000'; btn.style.opacity='1'; }
+      btn.textContent='#'+b.id;
+    });
+  }
+
+  if(alive.length===0){
+    $('tel-velocity').innerHTML='—<span class="telem-unit">'+t('kms')+'</span>';
+    $('tel-orbital').innerHTML='—<span class="telem-unit">'+t('kms')+'</span>';
+    $('tel-distance').innerHTML='—<span class="telem-unit">Rs</span>';
+    $('tel-period').innerHTML='—<span class="telem-unit">'+t('sec')+'</span>';
+    $('tel-dilation').innerHTML='1h = 1h';
+    $('tel-gravity').innerHTML='—<span class="telem-unit"> g</span>';
+    $('tel-tidal').innerHTML='—<span class="telem-unit"> g</span>';
+    $('tel-status').innerHTML='<span class="status-dot green"></span>'+t(isRunning?'noBody':'ready');
+    return;
+  }
+  const b=alive[activeTelemIdx];const rs=Rs();
+  const r=Math.sqrt(b.x*b.x+b.y*b.y+b.z*b.z);
+  const v=Math.sqrt(b.vx*b.vx+b.vy*b.vy+b.vz*b.vz);
+  const vKms=(v/1000).toFixed(0);
+  const distRs=(r/rs).toFixed(2);
+  const vCircular=(vCirc(r)/1000).toFixed(0);
+  const period=r>0?(2*Math.PI*r/v).toFixed(4):'—';
+  
+  // Custom new physics (Time Dilation & Tidal Force)
+  const fsq = 1 - (rs / r) - (v*v)/(C*C);
+  let dilationStr = '1h = 1h';
+  if(fsq > 0 && fsq < 0.9999) {
+    const f = Math.sqrt(fsq);
+    const eh = 1 / f;
+    if(eh > 8760) dilationStr = `1h = ${(eh/8760).toFixed(1)} ` + (lang==='ru'?'лет':'y');
+    else if(eh > 24) dilationStr = `1h = ${(eh/24).toFixed(1)} ` + (lang==='ru'?'дн':'d');
+    else if(eh > 2) dilationStr = `1h = ${eh.toFixed(1)} ` + (lang==='ru'?'ч':'h');
+    else dilationStr = `1h = ${(eh*60).toFixed(0)} ` + (lang==='ru'?'мин':'m');
+  } else if (fsq <= 0) {
+    dilationStr = '∞';
+  }
+  
+  const bodyMassEarths = b.mass / M_EARTH;
+  const surfG = Math.pow(bodyMassEarths, 1/3);
+  // Planet radius in meters
+  const R_plan = 6371000 * Math.pow(bodyMassEarths, 1/3);
+  // Difference in gravity across planet diameter = roughly 2 * G * M * R_plan / r^3
+  const dG = (2 * G * (cfg.bhMass * M_SUN) * R_plan) / (Math.pow(r, 3) * 9.80665);
+  const tideStr = dG > surfG ? `<span style="color:var(--red)">${dG.toFixed(1)}</span>` : dG.toFixed(3);
+  
+  $('tel-velocity').innerHTML=numberFmt(vKms)+'<span class="telem-unit"> '+t('kms')+'</span>';
+  $('tel-orbital').innerHTML=numberFmt(vCircular)+'<span class="telem-unit"> '+t('kms')+'</span>';
+  $('tel-distance').innerHTML=distRs+'<span class="telem-unit"> Rs</span>';
+  $('tel-period').innerHTML=period+'<span class="telem-unit"> '+t('sec')+'</span>';
+  $('tel-dilation').innerHTML=dilationStr;
+  $('tel-gravity').innerHTML=surfG.toFixed(2)+'<span class="telem-unit"> g</span>';
+  $('tel-tidal').innerHTML=tideStr+'<span class="telem-unit"> g</span>';
+  // Status
+  const rRs=r/rs;let statusHTML,dotClass;
+  if(rRs<=1.5){dotClass='red';statusHTML=t('captured')}
+  else if(rRs>80){dotClass='amber';statusHTML=t('escaped')}
+  else{
+    const vEsc=Math.sqrt(2*G*cfg.bhMass*M_SUN/r);
+    if(v>vEsc*.98){dotClass='amber';statusHTML=t('unstable')}
+    else{dotClass='green';statusHTML=t('stable')}
+  }
+  $('tel-status').innerHTML='<span class="status-dot '+dotClass+'"></span>'+statusHTML;
+}
+
+function numberFmt(n){return Number(n).toLocaleString()}
+
+/* ═══════════════════════════════════════════
+   ANIMATION LOOP
+   ═══════════════════════════════════════════ */
+function animate(time){
+  requestAnimationFrame(animate);
+  const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
+
+  // MET clock
+  const now=new Date();
+  $('met-clock').textContent='MET '+now.toTimeString().split(' ')[0] + ' | NASA GMT: ' + now.toISOString().substring(11,19);
+
+  // Physics
+  if(isRunning&&!isPaused){
+    // Compute base time scale relative to a fixed 10 Rs orbit
+    const rs=Rs();const r0=10*rs;const T0=2*Math.PI*r0/vCirc(r0);
+    const baseScale=T0/4;
+    const simDt=dt*baseScale*cfg.timeScale;
+    const substeps=120;const subDt=simDt/substeps;
+    for(let i=0;i<substeps;i++)physicsStep(subDt);
+    simTime+=simDt;
+    updateBodies();
+    if(cfg.showGrid)updateGrid();
+    if(cfg.showForces)updateForceLines();
+    // Remove dead bodies
+    bodies=bodies.filter(b=>{if(!b.alive){if(b.mesh)scene.remove(b.mesh);if(b.trailLine)scene.remove(b.trailLine);return false}return true});
+    updateTelemetry();
+  }
+
+  // Sim time display
+  const st=Math.abs(simTime);const h=Math.floor(st/3600),m=Math.floor((st%3600)/60),s=(st%60).toFixed(1);
+  $('sim-time').textContent='T+ '+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+s.padStart(4,'0');
+
+  // Accretion disk rotation
+  if(accDisk&&accDisk.material.uniforms)accDisk.material.uniforms.uTime.value=time*.001;
+
+  // Controls
+  controls.update();
+
+  // Lensing
+  if(cfg.showLensing){
+    if(bhMesh)bhMesh.visible=false;
+    updateLensing();composer.render();
+  }
+  else{
+    if(bhMesh)bhMesh.visible=true;
+    renderer.render(scene,camera);
+  }
+}
+
+function onResize(){
+  const w=container.clientWidth,h=container.clientHeight;
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+  renderer.setSize(w,h);composer.setSize(w,h);
+}
+
+/* ═══════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════ */
+initScene();initUI();applyLang();
+const rsKm=(Rs()/1000).toFixed(1);
+$('val-rs').textContent=rsKm+(lang==='ru'?' км':' km');
+$('tel-rs').innerHTML=rsKm+' <span class="telem-unit">'+(lang==='ru'?'км':'km')+'</span>';
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
