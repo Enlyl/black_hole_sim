@@ -5,101 +5,202 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Black Hole Simulator</title>
 <meta name="description" content="Interactive 3D Black Hole Physics Simulator with Newtonian orbital mechanics and Einstein ring lensing">
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#080c14;--panel:rgba(6,14,30,0.92);--border:rgba(0,180,240,0.35);
-  --cyan:#00d4ff;--green:#00ff88;--amber:#ffaa00;--red:#ff3344;
-  --text:#c8d8e8;--dim:rgba(160,190,220,0.5);
-  --font-title:'Orbitron',sans-serif;--font-mono:'Share Tech Mono',monospace;
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #030508;
+  --panel: rgba(10, 15, 25, 0.45);
+  --border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --cyan: #00e5ff;
+  --green: #00ff88;
+  --amber: #ffaa00;
+  --red: #ff3344;
+  --text: #e2e8f0;
+  --dim: rgba(160, 175, 200, 0.6);
+  --font-title: 'Orbitron', sans-serif;
+  --font-ui: 'Inter', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
 }
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:12px}
-#app{display:grid;grid-template-rows:42px 1fr 36px;grid-template-columns:280px 1fr 260px;height:100vh;width:100vw}
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* ── SCENE (Background) ── */
+#scene-container {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+}
+#scene-container canvas {
+  display: block;
+}
+
+/* ── FLOATING PANELS (Glassmorphism) ── */
+.glass-panel {
+  position: absolute;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  box-shadow: var(--glass-shadow);
+  z-index: 10;
+}
 
 /* ── TOP BAR ── */
-#top-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
-  background:linear-gradient(180deg,rgba(0,60,100,0.4),var(--panel));border-bottom:1px solid var(--border);z-index:10}
-#top-bar .logo{font-family:var(--font-title);font-size:14px;font-weight:700;letter-spacing:3px;color:var(--cyan);text-shadow:0 0 12px rgba(0,212,255,0.5)}
-#top-bar .sub{font-size:10px;color:var(--dim);letter-spacing:2px;margin-left:12px}
-.top-right{display:flex;align-items:center;gap:16px}
-#btn-lang{background:transparent;border:1px solid var(--cyan);color:var(--cyan);font-family:var(--font-title);font-size:11px;padding:4px 14px;cursor:pointer;border-radius:3px;transition:.2s}
-#btn-lang:hover{background:rgba(0,212,255,0.15);box-shadow:0 0 8px rgba(0,212,255,0.3)}
-#met-clock{font-family:var(--font-mono);font-size:13px;color:var(--green);letter-spacing:1px}
+#top-bar {
+  top: 16px; left: 50%; transform: translateX(-50%);
+  width: calc(100% - 32px);
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+#top-bar .logo {
+  font-family: var(--font-title);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 3px; color: var(--text);
+  text-shadow: 0 0 10px rgba(255,255,255,0.2);
+}
+#top-bar .sub {
+  font-family: var(--font-title);
+  font-size: 10px; color: var(--cyan);
+  letter-spacing: 2px; margin-left: 12px;
+  font-weight: 500;
+}
+.top-right { display: flex; align-items: center; gap: 20px; }
+#btn-lang {
+  background: transparent; border: 1px solid var(--dim); color: var(--text);
+  font-family: var(--font-ui); font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 6px; cursor: pointer; transition: 0.2s;
+}
+#btn-lang:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.1); }
+#met-clock { font-family: var(--font-mono); font-size: 14px; color: var(--green); }
 
-/* ── PANELS ── */
-#control-panel,#telemetry-panel{overflow-y:auto;padding:10px 12px;border-right:1px solid var(--border);background:var(--panel);z-index:5}
-#telemetry-panel{border-right:none;border-left:1px solid var(--border)}
-#control-panel::-webkit-scrollbar,#telemetry-panel::-webkit-scrollbar{width:4px}
-#control-panel::-webkit-scrollbar-thumb,#telemetry-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.section{margin-bottom:14px}
-.section-title{font-family:var(--font-title);font-size:10px;font-weight:500;color:var(--cyan);letter-spacing:2px;
-  text-transform:uppercase;padding-bottom:6px;margin-bottom:8px;border-bottom:1px solid rgba(0,180,240,0.15)}
-
-/* Sliders */
-.slider-row{margin-bottom:8px}
-.slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;font-size:10px;color:var(--dim)}
-.slider-value{color:var(--green);font-size:11px;min-width:60px;text-align:right}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(0,180,240,0.15);border-radius:2px;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;
-  background:var(--cyan);cursor:pointer;box-shadow:0 0 6px rgba(0,212,255,0.5)}
-
-/* Checkbox */
-.check-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;font-size:11px}
-.check-row input[type=checkbox]{accent-color:var(--cyan);width:14px;height:14px;cursor:pointer}
-
-/* Color */
-.color-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px}
-.color-row input[type=color]{width:28px;height:20px;border:1px solid var(--border);background:transparent;cursor:pointer;border-radius:2px}
-
-/* Buttons */
-.btn-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
-.btn{font-family:var(--font-title);font-size:10px;font-weight:500;letter-spacing:1px;padding:7px 0;border:1px solid;
-  border-radius:3px;cursor:pointer;background:transparent;transition:.25s;flex:1;min-width:70px;text-align:center}
-.btn-launch{color:var(--green);border-color:var(--green)}
-.btn-launch:hover{background:rgba(0,255,136,0.15);box-shadow:0 0 10px rgba(0,255,136,0.3)}
-.btn-pause{color:var(--amber);border-color:var(--amber)}
-.btn-pause:hover{background:rgba(255,170,0,0.15);box-shadow:0 0 10px rgba(255,170,0,0.3)}
-.btn-reset{color:var(--red);border-color:var(--red)}
-.btn-reset:hover{background:rgba(255,51,68,0.15);box-shadow:0 0 10px rgba(255,51,68,0.3)}
-.btn-add{color:var(--cyan);border-color:var(--cyan)}
-.btn-add:hover{background:rgba(0,212,255,0.15);box-shadow:0 0 10px rgba(0,212,255,0.3)}
-
-/* ── TELEMETRY ── */
-.telem-item{margin-bottom:12px}
-.telem-label{font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
-.telem-value{font-size:20px;color:var(--green);text-shadow:0 0 8px rgba(0,255,136,0.3);letter-spacing:1px}
-.telem-unit{font-size:10px;color:var(--dim);margin-left:4px}
-.telem-value.small{font-size:14px}
-
-.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-.status-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
-.status-dot.amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
-.status-dot.red{background:var(--red);box-shadow:0 0 6px var(--red)}
-
-/* ── SCENE ── */
-#scene-container{position:relative;overflow:hidden;background:#000}
-#scene-container canvas{display:block}
+/* ── CONTROL & TELEMETRY PANELS ── */
+#control-panel, #telemetry-panel {
+  top: 80px; bottom: 72px; width: 300px;
+  border-radius: 16px;
+  overflow-y: overlay; padding: 16px;
+}
+#control-panel { left: 16px; }
+#telemetry-panel { right: 16px; }
+#control-panel::-webkit-scrollbar, #telemetry-panel::-webkit-scrollbar { width: 4px; }
+#control-panel::-webkit-scrollbar-thumb, #telemetry-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
 /* ── BOTTOM BAR ── */
-#bottom-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;
-  background:var(--panel);border-top:1px solid var(--border);z-index:10}
-#status-indicator{display:flex;align-items:center;font-size:11px;letter-spacing:1px}
-#sim-time{font-size:12px;color:var(--green);letter-spacing:1px}
+#bottom-bar {
+  bottom: 16px; left: 50%; transform: translateX(-50%);
+  width: calc(100% - 32px); height: 40px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+}
 
-/* ── Scanline overlay ── */
-#scene-container::after{content:'';position:absolute;inset:0;pointer-events:none;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);z-index:1}
+/* Sections */
+.section { margin-bottom: 20px; }
+.section-title {
+  font-family: var(--font-title); font-size: 11px; font-weight: 600;
+  color: var(--text); letter-spacing: 1.5px; text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex; align-items: center;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); margin-left: 12px;
+}
 
-/* Pulse animation */
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.pulse{animation:pulse 1.5s infinite}
+/* Sliders */
+.slider-row { margin-bottom: 12px; }
+.slider-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 500; font-size: 11px; color: var(--dim); }
+.slider-value { color: var(--cyan); font-family: var(--font-mono); font-size: 12px; }
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+  background: rgba(0,0,0,0.5); border-radius: 3px; outline: none;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--text);
+  cursor: pointer; box-shadow: 0 0 8px rgba(255,255,255,0.4); transition: transform 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+/* Toggles (replacing checkboxes) */
+.check-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; cursor: pointer; font-size: 12px; font-weight: 500; }
+.check-row input[type=checkbox] {
+  appearance: none; width: 36px; height: 20px; background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border); border-radius: 10px; position: relative; cursor: pointer; transition: 0.3s;
+  flex-shrink: 0;
+}
+.check-row input[type=checkbox]::after {
+  content: ''; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px;
+  background: var(--dim); border-radius: 50%; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.check-row input[type=checkbox]:checked { background: var(--cyan); border-color: var(--cyan); }
+.check-row input[type=checkbox]:checked::after { transform: translateX(16px); background: #111; box-shadow: 0 0 5px rgba(255,255,255,0.8); }
+
+/* Colors */
+.color-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
+.color-row input[type=color] {
+  appearance: none; -webkit-appearance: none; width: 28px; height: 28px; border: none; background: none; cursor: pointer;
+}
+.color-row input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.color-row input[type=color]::-webkit-color-swatch { border: 2px solid var(--border); border-radius: 6px; }
+
+/* Buttons */
+.btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.btn {
+  font-family: var(--font-title); font-size: 11px; font-weight: 600; letter-spacing: 1px;
+  padding: 8px 0; border: 1px solid; border-radius: 6px; cursor: pointer;
+  background: rgba(0,0,0,0.2); backdrop-filter: blur(4px); transition: all 0.25s ease; flex: 1; min-width: 70px;
+}
+.btn-launch { color: var(--green); border-color: rgba(0,255,136,0.3); }
+.btn-launch:hover { background: rgba(0,255,136,0.15); border-color: var(--green); box-shadow: 0 4px 12px rgba(0,255,136,0.2); transform: translateY(-1px); }
+.btn-pause { color: var(--amber); border-color: rgba(255,170,0,0.3); }
+.btn-pause:hover { background: rgba(255,170,0,0.15); border-color: var(--amber); box-shadow: 0 4px 12px rgba(255,170,0,0.2); transform: translateY(-1px); }
+.btn-reset { color: var(--red); border-color: rgba(255,51,68,0.3); }
+.btn-reset:hover { background: rgba(255,51,68,0.15); border-color: var(--red); box-shadow: 0 4px 12px rgba(255,51,68,0.2); transform: translateY(-1px); }
+.btn-add { color: var(--cyan); border-color: rgba(0,229,255,0.3); }
+.btn-add:hover { background: rgba(0,229,255,0.15); border-color: var(--cyan); box-shadow: 0 4px 12px rgba(0,229,255,0.2); transform: translateY(-1px); }
+
+/* Telemetry */
+.telem-item { margin-bottom: 12px; }
+.telem-label { font-size: 10px; font-weight: 600; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; display: flex; align-items: center;}
+.telem-value { font-family: var(--font-mono); font-size: 20px; color: var(--green); text-shadow: 0 0 8px rgba(0,255,136,0.2); letter-spacing: 1px; }
+.telem-unit { font-family: var(--font-ui); font-size: 10px; color: var(--dim); margin-left: 6px; font-weight: 500; letter-spacing: 0; text-shadow: none; }
+.telem-value.small { font-size: 15px; }
+
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+.status-dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.status-dot.amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.status-dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+#status-indicator { display: flex; align-items: center; font-size: 12px; font-weight: 600; letter-spacing: 1px; color: var(--text); }
+#sim-time { font-family: var(--font-mono); font-size: 14px; color: var(--text); letter-spacing: 1px; }
 
 /* Tooltips */
-.help-icon{display:inline-flex;justify-content:center;align-items:center;width:12px;height:12px;border-radius:50%;border:1px solid var(--dim);color:var(--dim);font-size:9px;margin-left:6px;cursor:help;position:relative;transition:0.2s;vertical-align:middle}
-.help-icon:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,0.1);z-index:100}
-.help-icon::after{content:attr(data-tooltip);position:absolute;left:-10px;top:20px;width:170px;background:var(--panel);border:1px solid var(--border);padding:6px 8px;border-radius:4px;font-size:10px;color:rgba(255,255,255,0.9);text-transform:none;line-height:1.4;pointer-events:none;opacity:0;transition:0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.6);text-align:left;font-family:sans-serif;letter-spacing:normal;z-index:9999}
-.help-icon:hover::after{opacity:1}
+.help-icon { display: inline-flex; justify-content: center; align-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--dim); color: var(--dim); font-size: 10px; margin-left: 6px; cursor: help; position: relative; transition: 0.2s; }
+.help-icon:hover { border-color: var(--text); color: var(--text); background: rgba(255,255,255,0.1); z-index: 100; }
+.help-icon::after { content: attr(data-tooltip); position: absolute; left: 20px; top: 0px; width: 220px; background: rgba(10,15,25,0.95); backdrop-filter: blur(8px); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 500; font-family: var(--font-ui); color: var(--text); text-transform: none; line-height: 1.5; pointer-events: none; opacity: 0; transition: 0.2s; box-shadow: 0 10px 20px rgba(0,0,0,0.5); z-index: 9999; text-shadow: none; }
+.help-icon:hover::after { opacity: 1; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; text-shadow: 0 0 8px var(--green); } 50% { opacity: 0.6; text-shadow: 0 0 2px var(--green); } }
+.pulse { animation: pulse 2s infinite; }
 </style>
 </head>
 
@@ -107,7 +208,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 <div id="app">
 
 <!-- ═══ TOP BAR ═══ -->
-<div id="top-bar">
+<div id="top-bar" class="glass-panel">
   <div style="display:flex;align-items:baseline">
     <span class="logo" data-i18n="title">СИМУЛЯТОР ЧЁРНОЙ ДЫРЫ</span>
     <span class="sub" data-i18n="subtitle">ОРБИТАЛЬНАЯ МЕХАНИКА</span>
@@ -119,7 +220,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 </div>
 
 <!-- ═══ CONTROL PANEL ═══ -->
-<div id="control-panel">
+<div id="control-panel" class="glass-panel">
 
   <!-- BH Mass -->
   <div class="section">
@@ -175,31 +276,31 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   <!-- Visualization -->
   <div class="section">
     <div class="section-title" data-i18n="visualization">ВИЗУАЛИЗАЦИЯ</div>
-    <label class="check-row"><input type="checkbox" id="chk-grid" checked><span data-i18n="grid">СЕТКА ПРОСТРАНСТВА</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-outline"><span data-i18n="outline">ОБВОДКА ЧД</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-orbit" checked><span data-i18n="orbit">ОРБИТА ЗАПУСКА</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-stars" checked><span data-i18n="stars">ЗВЁЗДНЫЙ ФОН</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-lensing"><span data-i18n="lensing">ГРАВИТАЦИОННОЕ ЛИНЗИРОВАНИЕ</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-accretion" checked><span data-i18n="accretion">АККРЕЦИОННЫЙ ДИСК</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-trail" checked><span data-i18n="trail">СЛЕД ТЕЛА</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-forces"><span data-i18n="forceLines" style="color:var(--cyan)">ЛИНИИ ГРАВИТАЦИИ</span></label>
+    <label class="check-row"><span data-i18n="grid">СЕТКА ПРОСТРАНСТВА</span><input type="checkbox" id="chk-grid" checked></label>
+    <label class="check-row"><span data-i18n="outline">ОБВОДКА ЧД</span><input type="checkbox" id="chk-outline"></label>
+    <label class="check-row"><span data-i18n="orbit">ОРБИТА ЗАПУСКА</span><input type="checkbox" id="chk-orbit" checked></label>
+    <label class="check-row"><span data-i18n="stars">ЗВЁЗДНЫЙ ФОН</span><input type="checkbox" id="chk-stars" checked></label>
+    <label class="check-row"><span data-i18n="lensing">ГРАВИТАЦИОННОЕ ЛИНЗИРОВАНИЕ</span><input type="checkbox" id="chk-lensing"></label>
+    <label class="check-row"><span data-i18n="accretion">АККРЕЦИОННЫЙ ДИСК</span><input type="checkbox" id="chk-accretion" checked></label>
+    <label class="check-row"><span data-i18n="trail">СЛЕД ТЕЛА</span><input type="checkbox" id="chk-trail" checked></label>
+    <label class="check-row"><span data-i18n="forceLines" style="color:var(--cyan)">ЛИНИИ ГРАВИТАЦИИ</span><input type="checkbox" id="chk-forces"></label>
   </div>
 
   <!-- Colors -->
   <div class="section">
     <div class="section-title" data-i18n="colors">ЦВЕТА</div>
-    <div class="color-row"><input type="color" id="clr-grid" value="#00b4d8"><span data-i18n="gridColor">ЦВЕТ СЕТКИ</span></div>
-    <div class="color-row"><input type="color" id="clr-body" value="#ff6b35"><span data-i18n="bodyColor">ЦВЕТ ТЕЛА</span></div>
-    <div class="color-row"><input type="color" id="clr-orbit" value="#00ff88"><span data-i18n="orbitColor">ЦВЕТ ОРБИТЫ</span></div>
+    <label class="color-row"><span data-i18n="gridColor">ЦВЕТ СЕТКИ</span><input type="color" id="clr-grid" value="#00b4d8"></label>
+    <label class="color-row"><span data-i18n="bodyColor">ЦВЕТ ТЕЛА</span><input type="color" id="clr-body" value="#ff6b35"></label>
+    <label class="color-row"><span data-i18n="orbitColor">ЦВЕТ ОРБИТЫ</span><input type="color" id="clr-orbit" value="#00ff88"></label>
   </div>
 
   <!-- Sound -->
   <div class="section">
     <div class="section-title" data-i18n="sound">ЗВУК</div>
-    <label class="check-row"><input type="checkbox" id="chk-ambient"><span data-i18n="ambient">ЭМБИЕНТ</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-bh-sound"><span data-i18n="bhSound">ЗВУК ЧД</span></label>
-    <label class="check-row"><input type="checkbox" id="chk-interstellar"><span data-i18n="interstellar" style="color:var(--cyan)">МУЗЫКА INTERSTELLAR</span></label>
-    <div class="slider-row" style="margin-top:4px">
+    <label class="check-row"><span data-i18n="ambient">ЭМБИЕНТ</span><input type="checkbox" id="chk-ambient"></label>
+    <label class="check-row"><span data-i18n="bhSound">ЗВУК ЧД</span><input type="checkbox" id="chk-bh-sound"></label>
+    <label class="check-row"><span data-i18n="interstellar" style="color:var(--cyan)">МУЗЫКА INTERSTELLAR</span><input type="checkbox" id="chk-interstellar"></label>
+    <div class="slider-row" style="margin-top:12px">
       <div class="slider-label"><span data-i18n="volume">ГРОМКОСТЬ</span><span class="slider-value" id="val-volume">50%</span></div>
       <input type="range" id="sl-volume" min="0" max="100" value="50" step="1">
     </div>
@@ -210,7 +311,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 <div id="scene-container"></div>
 
 <!-- ═══ TELEMETRY PANEL ═══ -->
-<div id="telemetry-panel">
+<div id="telemetry-panel" class="glass-panel">
   <div class="section">
     <div class="section-title" data-i18n="telemetry">ТЕЛЕМЕТРИЯ</div>
 
@@ -267,7 +368,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
 </div>
 
 <!-- ═══ BOTTOM BAR ═══ -->
-<div id="bottom-bar">
+<div id="bottom-bar" class="glass-panel">
   <div id="status-indicator"><span class="status-dot green" id="status-dot"></span><span id="status-text" data-i18n="ready">ГОТОВ К ЗАПУСКУ</span></div>
   <div id="sim-time">T+ 00:00:00.0</div>
 </div>
@@ -374,7 +475,7 @@ window.toggleLang=()=>{lang=lang==='ru'?'en':'ru';document.getElementById('btn-l
 const cfg={bhMass:10,bodyMass:1,bodyRadius:10,speedFactor:1,angle:0,timeScale:1,
   showGrid:true,showOutline:false,showOrbit:true,showStars:true,showLensing:false,showAccretion:true,showTrail:true,showForces:false,
   gridColor:'#00b4d8',bodyColor:'#ff6b35',orbitColor:'#00ff88'};
-let isPaused=false,isRunning=false,simTime=0,bodies=[],lastTime=0,activeTelemIdx=0,bodyIdCounter=0;
+let isPaused=false,isRunning=false,simTime=0,diskTime=0,bodies=[],lastTime=0,activeTelemIdx=0,bodyIdCounter=0;
 
 function Rs(){return 2*G*cfg.bhMass*M_SUN/(C*C)}
 function vCirc(rMeters){return Math.sqrt(G*cfg.bhMass*M_SUN/rMeters)}
@@ -385,6 +486,7 @@ function vCirc(rMeters){return Math.sqrt(G*cfg.bhMass*M_SUN/rMeters)}
 const container=document.getElementById('scene-container');
 let scene,camera,renderer,controls,composer,lensingPass;
 let bhGroup,bhMesh,bhOutline,accDisk,gridMesh,starsPoints,milkyWay,orbitPreview;
+let milkyWayBg=null;
 let forceLinesGroup;
 
 function initScene(){
@@ -422,68 +524,103 @@ function createBlackHole(){
 
 function createAccretionDisk(){
   if(accDisk){bhGroup.remove(accDisk);accDisk.geometry.dispose();accDisk.material.dispose()}
-  // Interstellar disk extends further and is very dense near the ISCO
-  const inner=1.5,outer=8.0;
-  const geo=new THREE.RingGeometry(inner,outer,256,64);
+  const inner=1.5,outer=9.0;
+  const geo=new THREE.RingGeometry(inner,outer,512,128);
   const mat=new THREE.ShaderMaterial({
     uniforms:{uTime:{value:0},uInner:{value:inner},uOuter:{value:outer}},
-    vertexShader:`varying vec3 vPos; varying vec2 vUv; void main(){vUv=uv; vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    vertexShader:`
+      varying vec3 vPos;
+      void main(){vPos=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`
-      varying vec3 vPos; varying vec2 vUv; uniform float uTime,uInner,uOuter;
-      float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
-      float noise(vec2 p){
-        vec2 i=floor(p), f=fract(p);
-        vec2 u=f*f*(3.-2.*f);
-        return mix(mix(hash(i+vec2(0.,0.)),hash(i+vec2(1.,0.)),u.x),
-                   mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),u.x),u.y);
+      varying vec3 vPos;
+      uniform float uTime,uInner,uOuter;
+
+      // ── 3-D value noise — torus-sampled → ZERO phi-seam, ZERO ring artifacts ──
+      float h3(vec3 p){
+        p=fract(p*vec3(0.1031,0.1030,0.0973));
+        p+=dot(p,p.yxz+33.33);
+        return fract((p.x+p.y)*p.z);
       }
-      float fbm(vec2 p){
-        float v=0., a=.5;
-        for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.; a*=.5; }
+      float vn3(vec3 p){
+        vec3 i=floor(p),f=fract(p),u=f*f*(3.0-2.0*f);
+        float n000=h3(i),n100=h3(i+vec3(1,0,0)),n010=h3(i+vec3(0,1,0)),n110=h3(i+vec3(1,1,0));
+        float n001=h3(i+vec3(0,0,1)),n101=h3(i+vec3(1,0,1)),n011=h3(i+vec3(0,1,1)),n111=h3(i+vec3(1,1,1));
+        return mix(mix(mix(n000,n100,u.x),mix(n010,n110,u.x),u.y),
+                   mix(mix(n001,n101,u.x),mix(n011,n111,u.x),u.y),u.z);
+      }
+      float fbm3(vec3 p){
+        float v=0.,a=0.5;
+        for(int i=0;i<6;i++){
+          v+=a*vn3(p);
+          p=p*2.04+vec3(1.72,9.23,3.41); // break octave self-similarity
+          a*=0.48;
+        }
         return v;
       }
+
       void main(){
-        float r=length(vPos.xy); float ang=atan(vPos.y,vPos.x);
-        float t=clamp((r-uInner)/(uOuter-uInner),0.,1.);
-        
-        // Interstellar colors: extremely bright white-yellow inner, fading to orange/red outer
-        vec3 colCenter = vec3(1.0, 0.95, 0.85);
-        vec3 colMid = vec3(0.9, 0.45, 0.1);
-        vec3 colEdge = vec3(0.2, 0.02, 0.0);
-        
+        float r  =length(vPos.xy);
+        float phi=atan(vPos.y,vPos.x);
+        float t  =clamp((r-uInner)/(uOuter-uInner),0.0,1.0);
+
+        // ── Keplerian co-rotating frame ────────────────────────────────────
+        float omega=pow(uInner/max(r,uInner*0.9),1.5);
+        float phi_c=phi+uTime*omega*2.0;
+
+        // ── Torus sampling — phi=0 and phi=2π map to the SAME 3-D point ───
+        // Proof: cos(0)=cos(2π), sin(0)=sin(2π)  →  zero seam.
+        float Rt=14.0;
+        vec3 tp=vec3((Rt+r*0.45)*cos(phi_c),
+                     (Rt+r*0.45)*sin(phi_c),
+                     r*2.8+uTime*0.025)*0.19;
+        float n=fbm3(tp); // smooth, seamless [0,1]
+
+        // ── Novikov-Thorne temperature profile ─────────────────────────────
+        // T(r) ∝ (1-√(r_in/r))^(1/4) · (r_in/r)^(3/4), peak ≈ 0.488 at r≈1.36·r_in
+        float xi=clamp(sqrt(uInner/r),0.001,0.9999);
+        float NT=pow(1.0-xi,0.25)*pow(uInner/r,0.75);
+        NT=clamp(NT/0.488,0.0,1.0);
+
+        // ── Blackbody colour ramp (0 K black → 2 kK red → 6 kK yellow → 50 kK blue-white)
+        vec3 cBlack =vec3(0.00,0.000,0.00);
+        vec3 cRed   =vec3(0.80,0.040,0.00);
+        vec3 cOrange=vec3(1.00,0.360,0.01);
+        vec3 cYellow=vec3(1.00,0.820,0.28);
+        vec3 cWhite =vec3(1.00,1.000,0.92);
+        vec3 cBlue  =vec3(0.88,0.940,1.00);
         vec3 col;
-        if (t < 0.25) col = mix(colCenter, colMid, t/0.25);
-        else col = mix(colMid, colEdge, (t-0.25)/0.75);
-        
-        // Add dust lanes and turbulence using seamless cartesian noise and differential rotation
-        float rsp = uTime * 3.0 / sqrt(r);
-        float c1 = cos(rsp), s1 = sin(rsp);
-        vec2 rot1 = vec2(vPos.x*c1 - vPos.y*s1, vPos.x*s1 + vPos.y*c1);
-        float n = fbm(rot1 * 2.0);
-        
-        // Doppler beaming: one side is brighter (periodic so no seam)
-        float doppler = 1.0 + 0.65*sin(ang - uTime*0.5);
-        col *= doppler;
-        
-        // Multi-layered noise for dust lanes
-        float rsp2 = uTime * 4.0 / sqrt(r);
-        float c2 = cos(rsp2), s2 = sin(rsp2);
-        vec2 rot2 = vec2(vPos.x*c2 - vPos.y*s2, vPos.x*s2 + vPos.y*c2);
-        float dust = smoothstep(0.35, 0.65, fbm(rot2 * 4.0));
-        col *= mix(1.0, 0.4, dust);
-        
-        // Intensity curve
-        float alpha = smoothstep(0.0, 0.05, t) * smoothstep(1.0, 0.6, t);
-        
-        // Core glow
-        float glow = exp(-t * 12.0) * 1.5;
-        col += colCenter * glow;
-        
-        gl_FragColor=vec4(col * 1.3, alpha * (0.8 + 0.3*n));
+        if      (NT<0.08) col=mix(cBlack ,cRed   ,NT/0.08);
+        else if (NT<0.28) col=mix(cRed   ,cOrange,(NT-0.08)/0.20);
+        else if (NT<0.55) col=mix(cOrange,cYellow,(NT-0.28)/0.27);
+        else if (NT<0.78) col=mix(cYellow,cWhite ,(NT-0.55)/0.23);
+        else              col=mix(cWhite ,cBlue  ,(NT-0.78)/0.22);
+
+        // ── Relativistic Doppler beaming D² — visible but NOT blown-out ───
+        float beta=clamp(sqrt(uInner*0.42/r),0.02,0.80);
+        float gam =1.0/sqrt(max(1e-4,1.0-beta*beta));
+        // ~30° inclination: effective cos θ ≈ sin(phi)*0.55
+        float Dfac=1.0/(gam*(1.0-beta*sin(phi)*0.55));
+        col*=pow(clamp(Dfac,0.25,2.8),2.0);
+
+        // ── MRI turbulence (torus noise — seamless) ───────────────────────
+        col*=mix(0.55,1.45,n);
+
+        // ── Opacity (Solid core, fading edges) ───────────────────────────
+        float alpha=smoothstep(0.0,0.05,t)*smoothstep(1.0,0.72,t);
+        alpha+=exp(-t*8.0)*0.85;
+        alpha*=3.0; // Boost to ensure the core is fully opaque
+        alpha=clamp(alpha,0.0,1.0);
+        // Fade at ISCO (NT→0 there — physically correct: no emission at innermost edge)
+        alpha*=smoothstep(0.0,0.07,NT);
+
+        // ── Luminosity (Stefan-Boltzmann: L∝T⁴, tempered for display) ───
+        float brt=0.7+3.8*pow(NT,1.4)*(0.9+exp(-t*4.5));
+        gl_FragColor=vec4(clamp(col*brt,0.0,18.0),alpha);
       }`,
-    side:THREE.DoubleSide,transparent:true,blending:THREE.AdditiveBlending,depthWrite:true
+    side:THREE.DoubleSide,transparent:true,blending:THREE.NormalBlending,depthWrite:false
   });
-  accDisk=new THREE.Mesh(geo,mat);accDisk.rotation.x=-Math.PI/2;
+  accDisk=new THREE.Mesh(geo,mat);
+  accDisk.rotation.x=-Math.PI/2;
   bhGroup.add(accDisk);
 }
 
@@ -541,30 +678,77 @@ function updateGrid(){
 
 /* ── Starfield ── */
 function createStarfield(){
-  const n=8000;const positions=new Float32Array(n*3),sizes=new Float32Array(n);
-  for(let i=0;i<n;i++){
-    const theta=Math.random()*Math.PI*2,phi=Math.acos(2*Math.random()-1);
-    const r=400+Math.random()*400;
-    positions[i*3]=r*Math.sin(phi)*Math.cos(theta);
-    positions[i*3+1]=r*Math.sin(phi)*Math.sin(theta);
-    positions[i*3+2]=r*Math.cos(phi);
-    sizes[i]=Math.random()*1.5+.3;
+  // ── Try NASA/ESO Milky Way cubemap (Three.js examples on jsDelivr CDN — CORS ok) ──
+  const mwBase='https://cdn.jsdelivr.net/npm/three@0.160.0/examples/textures/cube/MilkyWay/';
+  new THREE.CubeTextureLoader().setPath(mwBase).load(
+    ['px.jpg','nx.jpg','py.jpg','ny.jpg','pz.jpg','nz.jpg'],
+    tex=>{
+      milkyWayBg=tex;
+      if(cfg.showStars) scene.background=tex;
+    },
+    undefined,
+    ()=>{ /* CORS/network failed — procedural fallback already in place */ }
+  );
+
+  // ── Procedural stars — galactic coordinate distribution (J2000) ──────────
+  // Galactic north pole: RA=192.86°, Dec=27.13° → scene XYZ (Y-up)
+  // gnp = (cos Dec·cos RA, sin Dec, cos Dec·sin RA)
+  const gnpX=-0.8676, gnpY=0.4553, gnpZ=-0.2011; // unit vector
+  // Galactic centre direction
+  const gcX=Math.cos(-28.94*Math.PI/180)*Math.cos(266.4*Math.PI/180);
+  const gcY=Math.sin(-28.94*Math.PI/180);
+  const gcZ=Math.cos(-28.94*Math.PI/180)*Math.sin(266.4*Math.PI/180);
+
+  // B-V colour index → approximate RGB (OB=blue, A=white, FG=yellow, KM=red)
+  function bvRgb(bv){
+    bv=Math.max(-0.4,Math.min(2.0,bv));
+    if(bv<-0.1) return [0.55-bv*1.1, 0.68-bv*0.4, 1.0];
+    if(bv< 0.3) return [0.80+bv*0.65, 0.85+bv*0.3, Math.max(0,1.0-bv*2.2)];
+    if(bv< 0.8) return [1.0, Math.max(0,1.0-(bv-0.3)*0.5), Math.max(0,0.75-(bv-0.3)*3.0)];
+    return [1.0, Math.max(0,0.75-(bv-0.8)*1.2), 0.0];
   }
-  // Milky Way band (denser region)
-  const mw=4000;const mwPos=new Float32Array(mw*3),mwSz=new Float32Array(mw);
-  for(let i=0;i<mw;i++){
+
+  const N=9500;
+  const pos=new Float32Array(N*3),col=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
     const th=Math.random()*Math.PI*2;
-    const spread=(Math.random()-.5)*.22;
-    const r=350+Math.random()*300;
-    mwPos[i*3]=r*Math.cos(th);mwPos[i*3+1]=r*spread;mwPos[i*3+2]=r*Math.sin(th);
-    mwSz[i]=Math.random()*.8+.2;
+    const ph=Math.acos(2*Math.random()-1);
+    const vx=Math.sin(ph)*Math.cos(th),vy=Math.cos(ph),vz=Math.sin(ph)*Math.sin(th);
+    // |sin b| = |v · gnp| — galactic latitude
+    const sinB=Math.abs(vx*gnpX+vy*gnpY+vz*gnpZ);
+    const toGC=vx*gcX+vy*gcY+vz*gcZ; // alignment toward galactic centre
+    // Density weight: disk (|b|<20°) + central bulge
+    const diskW=Math.exp(-sinB*sinB*14.0);
+    const bulgeW=Math.exp(-Math.pow(1.0-toGC,2.0)*7.0)*0.6;
+    const density=0.18+0.58*diskW+0.24*bulgeW;
+    let px,py,pz;
+    if(Math.random()<density){
+      const R=580+Math.random()*160;
+      px=vx*R;py=vy*R;pz=vz*R;
+    } else {
+      // Background uniform star — random position
+      const R2=550+Math.random()*200;
+      const t2=Math.random()*Math.PI*2,p2=Math.acos(2*Math.random()-1);
+      px=R2*Math.sin(p2)*Math.cos(t2);
+      py=R2*Math.cos(p2);
+      pz=R2*Math.sin(p2)*Math.sin(t2);
+    }
+    pos[i*3]=px;pos[i*3+1]=py;pos[i*3+2]=pz;
+    // Assign B-V: rare hot blue OB stars in disk, mostly yellow G/K dwarfs, red M giants
+    const isBlue=diskW>0.7&&Math.random()<0.04;
+    const bv=isBlue?(-0.3+Math.random()*0.25):(0.25+Math.random()*1.6);
+    const [r,g,b]=bvRgb(bv);
+    const br=isBlue?(0.8+Math.random()*0.8):(0.5+Math.random()*0.6);
+    col[i*3]=r*br;col[i*3+1]=g*br;col[i*3+2]=b*br;
   }
-  const sGeo=new THREE.BufferGeometry();sGeo.setAttribute('position',new THREE.BufferAttribute(positions,3));
-  starsPoints=new THREE.Points(sGeo,new THREE.PointsMaterial({color:0xffffff,size:.6,sizeAttenuation:true}));
+  const sGeo=new THREE.BufferGeometry();
+  sGeo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  sGeo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  starsPoints=new THREE.Points(sGeo,new THREE.PointsMaterial({
+    vertexColors:true,size:0.9,sizeAttenuation:true,transparent:true,opacity:0.88
+  }));
   scene.add(starsPoints);
-  const mGeo=new THREE.BufferGeometry();mGeo.setAttribute('position',new THREE.BufferAttribute(mwPos,3));
-  milkyWay=new THREE.Points(mGeo,new THREE.PointsMaterial({color:0xccbbff,size:.4,sizeAttenuation:true,transparent:true,opacity:.6}));
-  scene.add(milkyWay);
+  milkyWay=null; // galactic distribution is now embedded in starsPoints
 }
 
 /* ── Orbit Preview ── */
@@ -594,19 +778,23 @@ function updateForceLines(){
     const p=b.mesh.position;
     // Line to Black Hole
     const distBH = p.length();
-    const opacityBH = Math.min(1.0, 0.1 + (10/distBH));
-    createForceLine(p, bhPos, b.color, opacityBH * 0.6);
+    const opacityBH = Math.min(0.8, 0.15 + (4.0/distBH));
+    createForceLine(p, bhPos, '#ffffff', opacityBH);
 
     // Lines to other bodies
     alive.forEach(other=>{
       if(other===b)return;
       const pOther=other.mesh.position;
       const d=p.distanceTo(pOther);
-      if(d<15){ // only show nearby connections
-        const forceStr = (b.mass * other.mass) / (d*d*1e24); // heuristic for visibility
-        const opacity = Math.min(0.5, forceStr * 0.5);
+      if(d<20){ // only show nearby connections
+        // Calculate relative gravitational pull dominance
+        const bodyMassEarths = b.mass / M_EARTH;
+        const otherMassEarths = other.mass / M_EARTH;
+        const forceStr = (bodyMassEarths * otherMassEarths) / (d * d); 
+        // A pair of 100-Earth-mass bodies at 5 Rs distance -> (10000)/25 = 400
+        const opacity = Math.min(0.7, forceStr * 0.05 + 0.1);
         if(opacity > 0.05) {
-          createForceLine(p, pOther, '#ffffff', opacity);
+          createForceLine(p, pOther, other.color, opacity);
         }
       }
     });
@@ -624,47 +812,59 @@ function createForceLine(v1, v2, color, opacity){
 function setupPostProcessing(){
   const w=container.clientWidth, h=container.clientHeight;
   const rt=new THREE.WebGLRenderTarget(w,h);
-  rt.depthTexture=new THREE.DepthTexture();
-  rt.depthTexture.type=THREE.UnsignedShortType;
   composer=new EffectComposer(renderer,rt);
   composer.addPass(new RenderPass(scene,camera));
   const lensShader={
-    uniforms:{tDiffuse:{value:null},tDepth:{value:rt.depthTexture},bhPos:{value:new THREE.Vector2(.5,.5)},bhZ:{value:0.5},eRadius:{value:.08},ehVisual:{value:.02},strength:{value:1},res:{value:new THREE.Vector2(w,h)}},
+    uniforms:{
+      tDiffuse:{value:null},
+      bhPos:{value:new THREE.Vector2(.5,.5)},
+      eRadius:{value:.08},
+      ehVisual:{value:.02},
+      strength:{value:1.0},
+      res:{value:new THREE.Vector2(w,h)}
+    },
     vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`
-      uniform sampler2D tDiffuse;uniform sampler2D tDepth;
-      uniform vec2 bhPos,res;uniform float eRadius,ehVisual,strength,bhZ;
+      uniform sampler2D tDiffuse;
+      uniform vec2 bhPos, res;
+      uniform float eRadius, ehVisual, strength;
       varying vec2 vUv;
+
       void main(){
-        float depth=texture2D(tDepth,vUv).r;
-        if(depth<bhZ-0.0005){gl_FragColor=texture2D(tDiffuse,vUv);return;}
-        vec2 uv=vUv;
-        vec2 asp=vec2(res.x/res.y,1.);
-        vec2 d=(uv-bhPos)*asp;
-        float dist=length(d);
-        vec2 dir=dist>0.001?normalize(d):vec2(0.);
-        // Gravitational lensing: pull UV toward BH center
-        // Light from behind the BH bends around it
-        float deflection=eRadius*eRadius/(dist*dist+0.0001)*strength;
-        deflection=min(deflection,0.5);
-        // Only distort — pull sample point toward BH center
-        vec2 lensedUV=uv-dir*deflection*0.12/asp;
-        lensedUV=clamp(lensedUV,0.,1.);
-        
-        float srcDepth=texture2D(tDepth,lensedUV).r;
-        vec4 col;
-        if(srcDepth < bhZ - 0.0005){
-          // Lensed sample hit a foreground object. Reject it to avoid stretching it.
-          col=texture2D(tDiffuse, uv);
-        } else {
-          col=texture2D(tDiffuse, lensedUV);
+        // Aspect-corrected screen-space distance from BH center
+        vec2 asp = vec2(res.x / res.y, 1.0);
+        vec2 d   = (vUv - bhPos) * asp;
+        float dist = length(d);
+        vec2 dir = dist > 0.001 ? normalize(d) : vec2(0.0);
+
+        // Pure black event horizon disc
+        float ehEdge = smoothstep(ehVisual * 0.85, ehVisual, dist);
+        if(ehEdge < 0.01){
+          gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+          return;
         }
-        
-        // Event horizon — pure black
-        if(dist<ehVisual){
-          gl_FragColor=vec4(0.,0.,0.,1.);return;
-        }
-        gl_FragColor=col;
+
+        // Gravitational deflection: inverse-square in screen distance
+        float lensR2 = eRadius * eRadius;
+        float dist2  = dist * dist;
+        float window = 1.0 - smoothstep(eRadius * 1.5, eRadius * 4.0, dist);
+        float deflection = lensR2 / (dist2 + 0.0001) * strength * window;
+        deflection = min(deflection, 0.55);
+
+        // Radial pull toward BH center in screen UV space
+        vec2 lensedUV = vUv - dir * deflection * 0.13 / asp;
+        lensedUV = clamp(lensedUV, 0.0, 1.0);
+
+        vec4 origCol = texture2D(tDiffuse, vUv);
+        vec4 lensedCol = texture2D(tDiffuse, lensedUV);
+
+        // Blend lensed onto original using the same window so the edge is seamless
+        vec4 col = mix(origCol, lensedCol, window);
+
+        // Restore event-horizon darkness at the boundary
+        col = mix(vec4(0.0,0.0,0.0,1.0), col, ehEdge);
+
+        gl_FragColor = col;
       }`
   };
   lensingPass=new ShaderPass(lensShader);composer.addPass(lensingPass);
@@ -674,7 +874,6 @@ function updateLensing(){
   if(!lensingPass)return;
   const v=new THREE.Vector3(0,0,0).project(camera);
   lensingPass.uniforms.bhPos.value.set((v.x+1)/2,(v.y+1)/2);
-  lensingPass.uniforms.bhZ.value=(v.z+1)/2;
   const d=camera.position.length();
   const er=Math.min(cfg.bhMass*.12/d,.25);
   lensingPass.uniforms.eRadius.value=er;
@@ -896,16 +1095,20 @@ function initAudio(){
   o1.connect(lp);o2.connect(lp);o3.connect(lp);lp.connect(bhGain);
   o1.start();o2.start();o3.start();lfo.start();
   
-  // ── Interstellar (Organ Synthesis) ──
+  // ── Interstellar (Pipe Organ + Cathedral Reverb) ──────────────────────────
   interGain=audioCtx.createGain();interGain.gain.value=0;interGain.connect(masterGain);
   interMainMix=audioCtx.createGain();interMainMix.connect(interGain);
-  // Heavy cinematic hall reverb
-  const id1=audioCtx.createDelay(1);id1.delayTime.value=0.33;
-  const id2=audioCtx.createDelay(1);id2.delayTime.value=0.47;
-  const ifb1=audioCtx.createGain();ifb1.gain.value=0.4;
-  const ifb2=audioCtx.createGain();ifb2.gain.value=0.35;
-  interMainMix.connect(id1);id1.connect(ifb1);ifb1.connect(id1);id1.connect(interGain);
-  interMainMix.connect(id2);id2.connect(ifb2);ifb2.connect(id2);id2.connect(interGain);
+  // Cathedral hall reverb: multi-tap feedback delays with warm LPF
+  const revLPF=audioCtx.createBiquadFilter();revLPF.type='lowpass';revLPF.frequency.value=1600;
+  revLPF.connect(interGain);
+  [0.75,1.30,2.00,2.85].forEach(dt=>{
+    const D=audioCtx.createDelay(4.0);D.delayTime.value=dt;
+    const fb=audioCtx.createGain();fb.gain.value=0.30;
+    D.connect(fb);fb.connect(D); // feedback loop
+    interMainMix.connect(D);
+    D.connect(revLPF);
+  });
+  interMainMix.connect(interGain); // dry signal pass-through
   
   audioInited=true;
 }
@@ -928,31 +1131,100 @@ function setInterstellar(on){
 
 function scheduleISZ(){
   if(!iszPlaying||!audioInited)return;
-  const t=audioCtx.currentTime;
-  const play=(freq,dur,vol)=>{
-    const sines=[1,2,3,4,6];const vols=[1,0.5,0.2,0.1,0.05];
-    const g=audioCtx.createGain();
-    g.gain.setValueAtTime(0,t);
-    g.gain.linearRampToValueAtTime(vol,t+0.05);
-    g.gain.setTargetAtTime(0,t+0.05+dur*0.6,0.15);
-    g.connect(interMainMix);
-    sines.forEach((h,i)=>{
-      const osc=audioCtx.createOscillator();osc.type='sine';osc.frequency.value=freq*h;
-      const og=audioCtx.createGain();og.gain.value=vols[i];
-      osc.connect(og);og.connect(g);
-      osc.start(t);osc.stop(t+dur);
+  // ── Interstellar Main Theme — Hans Zimmer (2014) ─────────────────────────
+  // «Day One» / «Interstellar» — Key: E major | 4/4 | 46 BPM
+  // Slow meditative pipe organ, building across four 8-bar phrases
+  const BPM=46, BEAT=60/BPM; // 1.304 s / quarter-note
+  const t0=audioCtx.currentTime+0.06;
+
+  // ── Open diapason organ pipe (8' + 4' + 2⅔' + 2' + 1⅗' + 1') ──────────
+  function organ(freq,startT,dur,vol){
+    if(!freq||!iszPlaying)return;
+    const eg=audioCtx.createGain();
+    eg.gain.setValueAtTime(0,startT);
+    eg.gain.linearRampToValueAtTime(vol,startT+0.05); // organ attack
+    eg.gain.setValueAtTime(vol,startT+dur-0.08);
+    eg.gain.exponentialRampToValueAtTime(0.0001,startT+dur+0.15);
+    eg.connect(interMainMix);
+    // Harmonic series: 8' 4' 2⅔' 2' 1⅗' 1' ½' — authentic diapason
+    [[1,1.00],[2,0.62],[3,0.32],[4,0.18],[5,0.10],[6,0.06],[8,0.03]].forEach(([h,a])=>{
+      const o=audioCtx.createOscillator(); o.type='sine';
+      o.frequency.value=freq*h;
+      const og=audioCtx.createGain(); og.gain.value=a;
+      o.connect(og); og.connect(eg);
+      o.start(startT); o.stop(startT+dur+0.25);
     });
-  };
-  const ostFreq=[440,659.25]; // A4, E5 (Cornfield Chase Ostinato)
-  const bassFreq=[220,174.61,146.83,164.81]; // A3, F3, D3, E3
-  play(ostFreq[iszStep%2], 0.3, 0.07);
-  if(iszStep%8===0){
-    const bIdx=Math.floor(iszStep/8)%4;
-    play(bassFreq[bIdx]/2, 3.0, 0.25); // sub
-    play(bassFreq[bIdx], 3.0, 0.15); // bass
   }
-  iszStep++;
-  iszTimer=setTimeout(scheduleISZ, 175);
+
+  // ── Note frequencies (E major: E F# G# A B C# D#) ───────────────────────
+  const E2=82.41, Fs2=92.50, Gs2=103.83, A2=110.00, B2=123.47, Cs3=138.59, Ds3=155.56, E3=164.81;
+  const E4=329.63, Fs4=369.99, Gs4=415.30, A4=440.00, B4=493.88, Cs5=554.37, Ds5=622.25, E5=659.25;
+  const Gs5=830.61, Fs5=739.99, As4=466.16, Ds4=311.13;
+
+  // ── Melody — 4 phrases × 8 beats each (~32 beats = ~42 s) ───────────────
+  // Phrase 1: Opening — lonely, questioning (E–G#–B–E arc)
+  // Phrase 2: Response — slightly warmer (C#5 peak)
+  // Phrase 3: Climax — soaring (E5 / G#5)
+  // Phrase 4: Resolution — descending home to E4
+  const melody=[
+    // P H R A S E  1  — ascending E major arpeggio, slow breath
+    [null, 2],
+    [E4,  4], [Gs4, 2],
+    [B4,  4], [E5,  2],
+    [Cs5, 3], [B4,  1],
+    [Gs4, 3], [Fs4, 1],
+    [E4,  4], [null,2],
+    // P H R A S E  2  — answer: stepwise with suspension
+    [B4,  4], [Cs5, 2],
+    [E5,  4], [Cs5, 2],
+    [B4,  3], [A4,  1],
+    [Gs4, 4], [Fs4, 2],
+    [E4,  4], [null,4],
+    // P H R A S E  3  — climax: highest notes, strongest dynamic
+    [Gs4, 2], [B4,  2], [E5,  2],
+    [Gs5, 4], [Fs5, 2],
+    [E5,  4], [Cs5, 2],
+    [B4,  4], [Gs4, 2],
+    [Fs4, 4], [E4,  2],
+    [null,4],
+    // P H R A S E  4  — quiet resolution, fading to silence
+    [Cs5, 4], [B4,  2],
+    [Gs4, 4], [Fs4, 2],
+    [E4,  4], [Ds4, 2],
+    [E4,  6],
+    [null, 6],
+  ];
+
+  // ── Bass pedals — long held tones, lf harmony (8' + 5th) ─────────────────
+  const bass=[
+    [E2,  8], [A2, 8],   // E  | A
+    [B2,  8], [E2, 8],   // B  | E
+    [Cs3, 8], [A2, 8],   // C# | A
+    [B2,  8], [E2, 8],   // B  | E
+    [Fs2, 6], [Gs2,6],   // F# | G# (chromatic swell)
+    [A2,  6], [E2, 6],   // A  | E (home)
+  ];
+
+  // ── Dynamic shaping across phrases ───────────────────────────────────────
+  // p1=soft, p2=mf, p3=f, p4=pp
+  const melVols=[0.038,0.038,0.048,0.048,0.058,0.058,0.028,0.028];
+  let mel=0, phraseIdx=0;
+  melody.forEach(([f,d])=>{
+    const vol=melVols[Math.min(phraseIdx,melVols.length-1)];
+    if(f) organ(f, t0+mel*BEAT, d*BEAT-0.05, vol);
+    mel+=d;
+    // crude phrase counter: accumulate beats per phrase (~26 beats each)
+  });
+
+  let bas=0;
+  bass.forEach(([f,d])=>{
+    organ(f,       t0+bas*BEAT, d*BEAT-0.12, 0.22);
+    organ(f*1.498, t0+bas*BEAT, d*BEAT-0.12, 0.09); // perfect 5th
+    bas+=d;
+  });
+
+  const totalBeats=melody.reduce((s,[,d])=>s+d,0);
+  iszTimer=setTimeout(scheduleISZ, totalBeats*BEAT*1000-200);
 }
 
 /* ═══════════════════════════════════════════
@@ -979,10 +1251,15 @@ function initUI(){
   $('chk-grid').onchange=e=>{cfg.showGrid=e.target.checked;if(gridMesh)gridMesh.visible=cfg.showGrid};
   $('chk-outline').onchange=e=>{cfg.showOutline=e.target.checked;if(bhOutline)bhOutline.visible=cfg.showOutline};
   $('chk-orbit').onchange=e=>{cfg.showOrbit=e.target.checked;if(orbitPreview)orbitPreview.visible=cfg.showOrbit};
-  $('chk-stars').onchange=e=>{cfg.showStars=e.target.checked;if(starsPoints)starsPoints.visible=cfg.showStars;if(milkyWay)milkyWay.visible=cfg.showStars};
+  $('chk-stars').onchange=e=>{
+    cfg.showStars=e.target.checked;
+    if(starsPoints)starsPoints.visible=cfg.showStars;
+    scene.background=cfg.showStars&&milkyWayBg?milkyWayBg:null;
+  };
   $('chk-lensing').onchange=e=>{cfg.showLensing=e.target.checked};
   $('chk-accretion').onchange=e=>{cfg.showAccretion=e.target.checked;if(accDisk)accDisk.visible=cfg.showAccretion};
   $('chk-trail').onchange=e=>{cfg.showTrail=e.target.checked};
+  $('chk-forces').onchange=e=>{cfg.showForces=e.target.checked;if(!cfg.showForces){forceLinesGroup.clear()}};
   // Colors
   $('clr-grid').oninput=e=>{cfg.gridColor=e.target.value;if(gridMesh)gridMesh.material.color.set(cfg.gridColor)};
   $('clr-body').oninput=e=>{cfg.bodyColor=e.target.value};
@@ -1133,6 +1410,9 @@ function animate(time){
   requestAnimationFrame(animate);
   const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
 
+  // Accretion disk has continuous flow, regardless of planet physics pauses
+  diskTime += dt * cfg.timeScale;
+
   // MET clock
   const now=new Date();
   $('met-clock').textContent='MET '+now.toTimeString().split(' ')[0] + ' | NASA GMT: ' + now.toISOString().substring(11,19);
@@ -1158,8 +1438,21 @@ function animate(time){
   const st=Math.abs(simTime);const h=Math.floor(st/3600),m=Math.floor((st%3600)/60),s=(st%60).toFixed(1);
   $('sim-time').textContent='T+ '+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+s.padStart(4,'0');
 
-  // Accretion disk rotation
-  if(accDisk&&accDisk.material.uniforms)accDisk.material.uniforms.uTime.value=time*.001;
+  // Accretion disk rotation (tied to constant diskTime)
+  if(accDisk&&accDisk.material.uniforms)accDisk.material.uniforms.uTime.value=diskTime*1.5;
+
+  // Handle Dynamic Layers: Render foreground planets on Layer 1 so they don't get lensed into glitches
+  const camPos = camera.position;
+  for(let b of bodies){
+    const isFront = (b.mesh.position.dot(camPos) > 0);
+    const layer = isFront ? 1 : 0;
+    if(b.mesh) {
+      b.mesh.layers.set(layer);
+      b.mesh.children.forEach(c => c.layers.set(layer));
+    }
+    // Trails always stay on Layer 0 so they get correctly lensed behind the BH
+    if(b.trailLine) b.trailLine.layers.set(0); 
+  }
 
   // Controls
   controls.update();
@@ -1167,10 +1460,27 @@ function animate(time){
   // Lensing
   if(cfg.showLensing){
     if(bhMesh)bhMesh.visible=false;
-    updateLensing();composer.render();
+    updateLensing();
+    
+    // 1. Render Layer 0 (Background, Accretion Disk, Event Horizon, Trails, Behind-Planets) 
+    camera.layers.disableAll();
+    camera.layers.enable(0);
+    composer.render();
+    
+    // 2. Render Layer 1 (Foreground Planets) perfectly on top without lensing smearing
+    camera.layers.disableAll();
+    camera.layers.enable(1);
+    renderer.autoClear = false;
+    renderer.clearDepth(); // Prevent Layer 1 from clipping against post-process quad
+    renderer.render(scene, camera);
+    renderer.autoClear = true;
+    
+    // Restore camera
+    camera.layers.enableAll();
   }
   else{
     if(bhMesh)bhMesh.visible=true;
+    camera.layers.enableAll();
     renderer.render(scene,camera);
   }
 }
